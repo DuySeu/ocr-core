@@ -1,0 +1,13 @@
+# OCR engine
+pytesseract
+
+# Input loading: PDF -> images, image handling
+pdf2image
+Pillow
+
+# Preprocessing (deskew, binarize)
+numpy
+opencv-python
+
+# Config file parsing (YAML)
+PyYAML

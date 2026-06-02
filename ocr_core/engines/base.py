@@ -25,5 +25,5 @@ class OCREngine(ABC):
         """data mode: words with text, bbox, confidence, line_key."""
 
     @abstractmethod
-    def recognize_text(self, image: Image.Image, lang: str) -> str:
-        """text mode: prose thuần (giữ \\n, đoạn cách nhau bằng dòng trống)."""
+    def recognize_text(self, image: Image.Image, lang: str, psm: int | None = None) -> str:
+        """markdown mode: prose thuần (psm tùy chọn cho OCR ô bảng)."""

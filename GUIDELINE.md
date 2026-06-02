@@ -54,7 +54,7 @@ Mỗi pipeline trong registry tạo ra một subcommand cùng tên. Pipeline có
 `legal` và `invoice`.
 
 ```bash
-# OCR mọi file trong ./input bằng profile pháp luật (text/paragraph)
+# OCR mọi file trong ./input bằng profile pháp luật (markdown: prose + bảng)
 python main.py legal
 
 # OCR mọi file trong ./input bằng profile hoá đơn (data/line, có bbox)
@@ -62,7 +62,8 @@ python main.py invoice
 ```
 
 Lệnh sẽ duyệt toàn bộ file hợp lệ trong `input_dir` (mặc định `./input`) và ghi
-mỗi file ra `<output_dir>/<tên_file>.<pipeline>.json`. Định dạng hỗ trợ:
+mỗi file ra `<output_dir>/<tên_file>.<pipeline>.<ext>` (`legal` → `.md`,
+`invoice` → `.json`). Định dạng đầu vào hỗ trợ:
 `.png .jpg .jpeg .tiff .tif .bmp .pdf`.
 
 ### Các cờ override
@@ -72,11 +73,10 @@ mỗi file ra `<output_dir>/<tên_file>.<pipeline>.json`. Định dạng hỗ tr
 | `-c, --config <file>` | Nạp thêm cấu hình từ file YAML/JSON |
 | `-o, --output-dir <dir>` | Thư mục xuất JSON |
 | `--lang <mã>` | Ngôn ngữ OCR, ví dụ `vie`, `eng`, `vie+eng` |
-| `--granularity <mức>` | `page` \| `paragraph` \| `line` |
 | `--log-level <mức>` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` (mặc định `INFO`) |
 
 ```bash
-python main.py legal -c override.yaml --granularity page --lang vie -o ./result
+python main.py legal -c override.yaml --lang vie -o ./result
 ```
 
 ### Thứ tự ưu tiên cấu hình
@@ -97,7 +97,6 @@ File YAML hoặc JSON (tự nhận diện). Chỉ chấp nhận các khoá trùn
 ```yaml
 # override.yaml
 lang: vie
-granularity: paragraph
 preprocess_steps: [grayscale, binarize]   # bỏ deskew
 input_dir: ./input
 output_dir: ./out
@@ -109,40 +108,41 @@ Các trường hợp lệ và giá trị mặc định (xem `ocr_core/config.py`
 |--------|----------|----------------|
 | `engine` | `tesseract` | `tesseract` |
 | `lang` | `vie` | mã ngôn ngữ Tesseract |
-| `mode` | `data` | `text` \| `data` |
-| `granularity` | `line` | `text`→`page`/`paragraph`; `data`→`line` |
+| `mode` | `data` | `markdown` \| `data` |
 | `preprocess_steps` | `[grayscale, deskew, binarize]` | tổ hợp các bước hợp lệ |
 | `input_dir` | `./input` | đường dẫn |
 | `output_dir` | `./out` | đường dẫn |
 
-> **Ràng buộc quan trọng:** `mode="text"` chỉ đi với `granularity` là `page`/`paragraph`
-> (không bbox); `mode="data"` chỉ đi với `line` (có bbox + confidence). Sai tổ hợp
-> → `ConfigError` ngay khi load.
+> **Ràng buộc quan trọng:** `mode="markdown"` → xuất `.md` (prose + bảng);
+> `mode="data"` → xuất JSON theo line (có bbox + confidence). Mode lạ → `ConfigError`
+> ngay khi load.
 
 ---
 
-## 4. Cấu trúc JSON đầu ra
+## 4. Cấu trúc đầu ra
 
-Header giống nhau cho mọi pipeline; chỉ khác phần `blocks`.
+`legal` (markdown) — xuất file `.md`: prose thành đoạn văn, bảng có
+khung thành markdown table. Ô gộp được lặp giá trị (markdown không có rowspan);
+hàng tiêu đề trải hết bảng render dạng `| **...** |  |  |`:
 
-`legal` (text / paragraph) — block chỉ có `text`:
+```markdown
+I. CĂN CỨ TRÌNH ...
 
-```json
-{
-  "source": "vbpl.pdf", "engine": "tesseract", "lang": "vie",
-  "mode": "text", "granularity": "paragraph", "page_count": 2,
-  "pages": [
-    { "page": 1, "blocks": [ {"text": "Điều 1. ..."} ], "error": null }
-  ]
-}
+| STT | Hạng mục | Yêu cầu kỹ thuật |
+| --- | --- | --- |
+| **I. Yêu cầu Máy chủ AI cá nhân — Số lượng: 04 cái** |  |  |
+| 1 | Kiến trúc nền tảng | Thuộc nền tảng AI Supercomputer... |
 ```
 
-`invoice` (data / line) — block có thêm `bbox` `[x, y, w, h]` và `confidence`:
+Trang lỗi được chèn `<!-- page N error: ... -->`, các trang khác vẫn xuất.
+
+`invoice` (data / line) — xuất JSON; block có `text`, `bbox` `[x, y, w, h]` và
+`confidence`:
 
 ```json
 {
   "source": "scan.pdf", "engine": "tesseract", "lang": "vie",
-  "mode": "data", "granularity": "line", "page_count": 1,
+  "mode": "data", "page_count": 1,
   "pages": [
     { "page": 1, "blocks": [
         {"text": "Invoice #123", "bbox": [100, 80, 220, 28], "confidence": 96.4} ],
@@ -151,9 +151,11 @@ Header giống nhau cho mọi pipeline; chỉ khác phần `blocks`.
 }
 ```
 
+- `run()` luôn trả dict trung gian; `run_to_file()` chọn serializer theo `mode`
+  (`markdown` → `.md` qua `markdown.to_markdown`, còn lại → `.json`).
 - `error` = `null` khi trang OK; là chuỗi `"<Loại lỗi>: <thông điệp>"` khi trang
-  lỗi (lúc đó `blocks` rỗng, các trang khác vẫn xử lý — best-effort per page).
-- Lỗi nạp file (định dạng không hỗ trợ, PDF hỏng) làm hỏng cả file đó, không tạo JSON.
+  lỗi (best-effort per page; các trang khác vẫn xử lý).
+- Lỗi nạp file (định dạng không hỗ trợ, PDF hỏng) làm hỏng cả file đó, không tạo output.
 
 ---
 
@@ -183,9 +185,9 @@ class riêng, không cần sửa core. Subcommand CLI sinh tự động từ key
 ```python
 # ocr_core/config.py
 PIPELINES: dict[str, "Config"] = {
-    "legal":   Config(mode="text", granularity="paragraph"),
-    "invoice": Config(mode="data", granularity="line"),
-    "receipt": Config(mode="data", granularity="line", lang="eng"),  # MỚI
+    "legal":   Config(mode="markdown"),
+    "invoice": Config(mode="data"),
+    "receipt": Config(mode="data", lang="eng"),  # MỚI
 }
 ```
 
@@ -195,8 +197,8 @@ Sau đó:
 python main.py receipt
 ```
 
-Chỉ override những trường khác mặc định. Đảm bảo tổ hợp `mode`/`granularity` hợp
-lệ (mục 3), nếu không sẽ `ConfigError` khi chạy.
+Chỉ override những trường khác mặc định. Đặt `mode` hợp lệ (`markdown` | `data`),
+nếu không sẽ `ConfigError` khi chạy.
 
 ---
 
@@ -208,8 +210,9 @@ phương thức:
 - `recognize_words(image, lang) -> list[Word]` — dùng cho `mode="data"`. Mỗi
   `Word` gồm `text`, `bbox=(x, y, w, h)`, `confidence`, và `line_key` (tuple để
   gom các từ cùng một dòng, ví dụ `(block, paragraph, line)`).
-- `recognize_text(image, lang) -> str` — dùng cho `mode="text"`. Trả prose thuần;
-  giữ `\n`, các đoạn cách nhau bằng dòng trống.
+- `recognize_text(image, lang, psm=None) -> str` — dùng cho `mode="markdown"`
+  (prose band và OCR từng ô bảng; `psm` tùy chọn, ví dụ `6` cho một ô). Trả prose
+  thuần; giữ `\n`, các đoạn cách nhau bằng dòng trống.
 
 Một engine chỉ cần hỗ trợ mode bạn định dùng; mode không hỗ trợ có thể raise
 `EngineError`.
@@ -240,7 +243,7 @@ class EasyOCREngine(OCREngine):
                               line_key=(i,)))  # mỗi kết quả là 1 dòng
         return words
 
-    def recognize_text(self, image: Image.Image, lang: str) -> str:
+    def recognize_text(self, image: Image.Image, lang: str, psm: int | None = None) -> str:
         words = self.recognize_words(image, lang)
         return "\n".join(w.text for w in words)
 

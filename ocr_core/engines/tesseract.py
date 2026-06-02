@@ -37,12 +37,13 @@ class TesseractEngine(OCREngine):
         logger.debug("tesseract recognized %d word(s) (lang=%s)", len(words), lang)
         return words
 
-    def recognize_text(self, image: Image.Image, lang: str) -> str:
+    def recognize_text(self, image: Image.Image, lang: str, psm: int | None = None) -> str:
         pytesseract, _ = self._import()
         from pytesseract import TesseractNotFoundError
 
         try:
-            return pytesseract.image_to_string(image, lang=lang)
+            cfg = f"--psm {psm}" if psm is not None else ""
+            return pytesseract.image_to_string(image, lang=lang, config=cfg)
         except TesseractNotFoundError as e:
             raise EngineError(
                 "Tesseract binary not found; install it (e.g. `brew install tesseract`)"

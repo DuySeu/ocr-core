@@ -1,0 +1,7 @@
+engine: tesseract
+lang: vie
+
+preprocess_steps: [grayscale, deskew, binarize]
+
+input_dir: ./input
+output_dir: ./output

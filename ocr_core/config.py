@@ -1,4 +1,5 @@
 """Configuration model and defaults."""
+
 from __future__ import annotations
 
 import json
@@ -12,35 +13,28 @@ class ConfigError(Exception):
 
 VALID_ENGINES = {"tesseract"}
 VALID_STEPS = {"grayscale", "deskew", "binarize"}
-# mode -> granularity hợp lệ: text cho prose (không bbox), data cho line (có bbox)
-VALID_GRANULARITY = {"text": {"page", "paragraph"}, "data": {"line"}}
+VALID_MODES = {"markdown", "data"}
 
 
 @dataclass
 class Config:
     engine: str = "tesseract"
-    lang: str = "vie" # eng, vie
-    mode: str = "data"  # "text" | "data"
-    granularity: str = "line"  # "page" | "paragraph" | "line"
+    lang: str = "vie"  # eng, vie
+    mode: str = "data"  # "markdown" | "data"
     preprocess_steps: list[str] = field(
         default_factory=lambda: ["grayscale", "deskew", "binarize"]
     )
     input_dir: str = "./input"
-    output_dir: str = "./out"
+    output_dir: str = "./output"
 
     def validate(self) -> "Config":
         if self.engine not in VALID_ENGINES:
             raise ConfigError(
                 f"unknown engine {self.engine!r}; valid: {sorted(VALID_ENGINES)}"
             )
-        if self.mode not in VALID_GRANULARITY:
+        if self.mode not in VALID_MODES:
             raise ConfigError(
-                f"unknown mode {self.mode!r}; valid: {sorted(VALID_GRANULARITY)}"
-            )
-        if self.granularity not in VALID_GRANULARITY[self.mode]:
-            raise ConfigError(
-                f"granularity {self.granularity!r} invalid for mode {self.mode!r}; "
-                f"valid: {sorted(VALID_GRANULARITY[self.mode])}"
+                f"unknown mode {self.mode!r}; valid: {sorted(VALID_MODES)}"
             )
         for step in self.preprocess_steps:
             if step not in VALID_STEPS:
@@ -54,15 +48,16 @@ DEFAULTS = Config()
 
 # Pipeline profiles: name -> default Config. New pipeline = add an entry here.
 PIPELINES: dict[str, "Config"] = {
-    "legal": Config(mode="text", granularity="paragraph"),
-    "invoice": Config(mode="data", granularity="line"),
+    "legal": Config(mode="markdown"),
+    "invoice": Config(mode="data"),
 }
 
 _ALLOWED_KEYS = set(Config.__dataclass_fields__)
 
 
-def load(path: str | None = None, overrides: dict | None = None,
-         base: Config = DEFAULTS) -> Config:
+def load(
+    path: str | None = None, overrides: dict | None = None, base: Config = DEFAULTS
+) -> Config:
     """Build config: base < file < overrides (CLI flags)."""
     cfg = base
     if path:

@@ -19,32 +19,32 @@ và mỗi **pipeline** chỉ là một `Config` đặt sẵn tên.
 
 ## 1. Cài đặt
 
-### Phụ thuộc hệ thống (binary)
-
-Hai thư viện Python cần binary của hệ điều hành:
-
-- **Tesseract** (cho engine `tesseract`):
-  ```bash
-  brew install tesseract            # macOS
-  # sudo apt install tesseract-ocr  # Debian/Ubuntu
-  ```
-  Cài thêm gói ngôn ngữ tiếng Việt nếu dùng `lang="vie"`:
-  ```bash
-  brew install tesseract-lang       # macOS (gồm vie)
-  # sudo apt install tesseract-ocr-vie
-  ```
-- **Poppler** (chỉ cần khi xử lý PDF, dùng bởi `pdf2image`):
-  ```bash
-  brew install poppler              # macOS
-  # sudo apt install poppler-utils
-  ```
-
-### Phụ thuộc Python
+Chạy script để tạo thư mục làm việc, cài binary hệ thống (theo OS) và cài thư
+viện Python vào `.venv`:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+./setup.sh
+source .venv/bin/activate
 ```
+
+### Thư viện sử dụng
+
+Binary hệ thống (script tự cài theo brew/apt/dnf):
+
+- **Tesseract** — engine OCR `tesseract` (kèm gói ngôn ngữ `vie`).
+- **Poppler** — chuyển PDF → ảnh (dùng bởi `pdf2image`).
+
+Thư viện Python (`requirements.txt`):
+
+| Thư viện | Vai trò |
+|----------|---------|
+| `pytesseract` | Engine OCR Tesseract |
+| `paddleocr` | Engine OCR PaddleOCR (tiếng Việt, opt-in) |
+| `pdf2image` | Nạp PDF → ảnh |
+| `Pillow` | Xử lý ảnh |
+| `numpy` | Tiền xử lý |
+| `opencv-python` | Tiền xử lý (deskew, binarize) + phát hiện bảng |
+| `PyYAML` | Đọc file cấu hình YAML |
 
 ---
 

@@ -60,7 +60,7 @@ class PaddleOCREngine(OCREngine):
                     "paddleocr not installed: pip install paddleocr paddlepaddle"
                 ) from e
             params = inspect.signature(PaddleOCR.__init__).parameters
-            kw = {"lang": code}
+            kw = {"lang": code, "enable_mkldnn": False}  # oneDNN PIR breaks PP-OCRv5 on paddle 3.x
             if "show_log" in params:
                 kw["show_log"] = False
             if "use_angle_cls" in params:  # 2.x
@@ -70,6 +70,9 @@ class PaddleOCREngine(OCREngine):
             for k in ("use_doc_orientation_classify", "use_doc_unwarping"):
                 if k in params:  # 3.x: skip heavy doc preprocessing (we deskew already)
                     kw[k] = False
+            if "text_det_limit_side_len" in params:  # 3.x: cap detector input to fit CPU RAM
+                kw["text_det_limit_type"] = "max"
+                kw["text_det_limit_side_len"] = 960
             if os.environ.get("PADDLE_USE_GPU"):
                 if "use_gpu" in params:  # 2.x
                     kw["use_gpu"] = True

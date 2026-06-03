@@ -17,6 +17,7 @@ Engine OCR và pipeline đều có thể mở rộng bằng cách thêm một en
 | Engine | Backend | Ghi chú |
 | --- | --- | --- |
 | `tesseract` | Tesseract qua `pytesseract` | Engine mặc định. Cần cài binary Tesseract (vd `brew install tesseract`). |
+| `paddleocr` | PaddleOCR (PP-OCR) | Tiếng Việt mạnh, offline; **opt-in**. Cài: `pip install paddleocr paddlepaddle` (hỗ trợ 2.x & 3.x). |
 
 Đăng ký engine mới tại `ocr_core/engines/__init__.py` (`_ENGINES`), implement interface `OCREngine` trong `engines/base.py`.
 

@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from .base import EngineError, OCREngine, Word
+from .paddle import PaddleOCREngine
 from .tesseract import TesseractEngine
 
-_ENGINES = {"tesseract": TesseractEngine}
+_ENGINES = {"tesseract": TesseractEngine, "paddleocr": PaddleOCREngine}
 
 
 def get_engine(name: str) -> OCREngine:

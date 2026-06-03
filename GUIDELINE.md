@@ -62,7 +62,7 @@ python main.py invoice
 ```
 
 Lệnh sẽ duyệt toàn bộ file hợp lệ trong `input_dir` (mặc định `./input`) và ghi
-mỗi file ra `<output_dir>/<tên_file>.<pipeline>.<ext>` (`legal` → `.md`,
+mỗi file ra `<output_dir>/<tên_file>.<ext>` (`legal` → `.md`,
 `invoice` → `.json`). Định dạng đầu vào hỗ trợ:
 `.png .jpg .jpeg .tiff .tif .bmp .pdf`.
 
@@ -288,6 +288,31 @@ engine: easyocr
 ```bash
 python main.py invoice -c easyocr.yaml
 ```
+
+### Engine có sẵn: `paddleocr` (tiếng Việt, opt-in)
+
+Engine `paddleocr` đã tích hợp sẵn, dùng được cho cả `markdown` và `data`. Phụ
+thuộc là **tùy chọn** (không nằm trong `requirements.txt`):
+
+```bash
+pip install paddleocr paddlepaddle   # hỗ trợ 2.x & 3.x; lần đầu chạy sẽ tự tải model (cần mạng)
+```
+
+Bật bằng config (Tesseract vẫn là mặc định):
+
+```yaml
+engine: paddleocr
+lang: vie                       # engine tự map vie->vi, eng->en
+preprocess_steps: [deskew]      # XEM LƯU Ý bên dưới
+```
+
+- **Lưu ý preprocessing:** PaddleOCR học trên ảnh tự nhiên/grayscale, nên
+  `binarize` làm **giảm** độ chính xác. Dùng `[deskew]` hoặc `[grayscale]` thay
+  cho mặc định `[grayscale, deskew, binarize]`.
+- **GPU (tùy chọn):** đặt biến môi trường `PADDLE_USE_GPU=1` và cài bản GPU của
+  `paddlepaddle`. Mặc định chạy CPU.
+- Thiếu thư viện → `EngineError` kèm hướng dẫn cài. Engine cache reader theo
+  `lang` nên model chỉ nạp một lần.
 
 ---
 

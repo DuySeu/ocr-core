@@ -11,7 +11,7 @@ class ConfigError(Exception):
     """Raised for invalid configuration."""
 
 
-VALID_ENGINES = {"tesseract"}
+VALID_ENGINES = {"tesseract", "paddleocr"}
 VALID_STEPS = {"grayscale", "deskew", "binarize"}
 VALID_MODES = {"markdown", "data"}
 

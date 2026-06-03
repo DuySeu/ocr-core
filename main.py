@@ -21,14 +21,10 @@ def _build_config(pipeline_name: str) -> config_mod.Config:
     return config_mod.load(path, base=PIPELINES[pipeline_name])
 
 
-def _targets(cfg: config_mod.Config) -> list[Path]:
-    root = Path(cfg.input_dir)
-    return sorted(p for p in root.glob("*") if p.suffix.lower() in SUPPORTED_EXTS)
-
-
 def cmd_run(args) -> int:
     cfg = _build_config(args.pipeline)
-    targets = _targets(cfg)
+    root = Path(cfg.input_dir)
+    targets = sorted(p for p in root.glob("*") if p.suffix.lower() in SUPPORTED_EXTS)
     if not targets:
         print(f"no files to process in {cfg.input_dir}")
         return 0
@@ -50,7 +46,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="ocr-core")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in PIPELINES:
-        p = sub.add_parser(name, help=f"OCR every file in input/ with the {name} pipeline")
+        p = sub.add_parser(
+            name, help=f"OCR every file in input/ with the {name} pipeline"
+        )
         p.set_defaults(func=cmd_run, pipeline=name)
 
     args = parser.parse_args()

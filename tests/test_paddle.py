@@ -35,7 +35,7 @@ def test_recognize_words_mapping(monkeypatch):
         monkeypatch,
         [[[[10, 20], [60, 20], [60, 40], [10, 40]], ("Hoá", 0.95)]],
     )
-    words = PaddleOCREngine().recognize_words(Image.new("RGB", (80, 60)), "vie")
+    words = PaddleOCREngine().recognize_words(Image.new("RGB", (80, 60)), ["vie"])
     assert len(words) == 1
     w = words[0]
     assert w.text == "Hoá"
@@ -52,7 +52,7 @@ def test_recognize_text_ordering(monkeypatch):
             [[[0, 10], [10, 10], [10, 20], [0, 20]], ("trên", 0.9)],
         ],
     )
-    text = PaddleOCREngine().recognize_text(Image.new("RGB", (20, 80)), "vie")
+    text = PaddleOCREngine().recognize_text(Image.new("RGB", (20, 80)), ["vie"])
     assert text == "trên\ndưới"
 
 
@@ -75,7 +75,7 @@ def test_recognize_words_v3_format(monkeypatch):
 
     fake.PaddleOCR = PaddleOCR
     monkeypatch.setitem(sys.modules, "paddleocr", fake)
-    words = PaddleOCREngine().recognize_words(Image.new("RGB", (80, 60)), "vie")
+    words = PaddleOCREngine().recognize_words(Image.new("RGB", (80, 60)), ["vie"])
     assert len(words) == 1
     assert words[0].text == "Hoá"
     assert words[0].bbox == (10, 20, 50, 20)
@@ -86,4 +86,4 @@ def test_missing_dependency(monkeypatch):
     fake = types.ModuleType("paddleocr")  # no PaddleOCR attr -> ImportError on import
     monkeypatch.setitem(sys.modules, "paddleocr", fake)
     with pytest.raises(EngineError, match="paddleocr not installed"):
-        PaddleOCREngine().recognize_words(Image.new("RGB", (5, 5)), "vie")
+        PaddleOCREngine().recognize_words(Image.new("RGB", (5, 5)), ["vie"])

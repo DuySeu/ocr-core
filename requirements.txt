@@ -1,6 +1,7 @@
 # OCR engine
 pytesseract
 paddleocr
+easyocr
 
 # Input loading: PDF -> images, image handling
 pdf2image

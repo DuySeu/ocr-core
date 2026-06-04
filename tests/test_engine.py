@@ -19,5 +19,5 @@ def test_recognize_text_psm(monkeypatch):
     fake.TesseractNotFoundError = type("TesseractNotFoundError", (Exception,), {})
     monkeypatch.setitem(sys.modules, "pytesseract", fake)
 
-    out = TesseractEngine().recognize_text(Image.new("RGB", (5, 5)), "vie", psm=6)
+    out = TesseractEngine().recognize_text(Image.new("RGB", (5, 5)), ["vie"], psm=6)
     assert out == "hi" and calls == {"lang": "vie", "config": "--psm 6"}

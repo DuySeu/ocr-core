@@ -11,7 +11,7 @@ class ConfigError(Exception):
     """Raised for invalid configuration."""
 
 
-VALID_ENGINES = {"tesseract", "paddleocr"}
+VALID_ENGINES = {"tesseract", "paddleocr", "easyocr"}
 VALID_STEPS = {"grayscale", "deskew", "binarize"}
 VALID_MODES = {"markdown", "data"}
 
@@ -20,6 +20,7 @@ VALID_MODES = {"markdown", "data"}
 class Config:
     engine: str = "tesseract"
     lang: str = "vie"  # eng, vie
+    langs: list[str] | None = None  # e.g. [vie, eng]; None -> [lang]
     mode: str = "data"  # "markdown" | "data"
     preprocess_steps: list[str] = field(
         default_factory=lambda: ["grayscale", "deskew", "binarize"]
@@ -32,6 +33,12 @@ class Config:
             raise ConfigError(
                 f"unknown engine {self.engine!r}; valid: {sorted(VALID_ENGINES)}"
             )
+        if self.langs is not None and (
+            not isinstance(self.langs, list)
+            or not self.langs
+            or not all(isinstance(x, str) for x in self.langs)
+        ):
+            raise ConfigError(f"langs must be a non-empty list of strings, got {self.langs!r}")
         if self.mode not in VALID_MODES:
             raise ConfigError(
                 f"unknown mode {self.mode!r}; valid: {sorted(VALID_MODES)}"
@@ -42,6 +49,9 @@ class Config:
                     f"unknown step {step!r}; valid: {sorted(VALID_STEPS)}"
                 )
         return self
+
+    def lang_list(self) -> list[str]:
+        return self.langs or [self.lang]
 
 
 DEFAULTS = Config()

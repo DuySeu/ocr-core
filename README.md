@@ -10,6 +10,7 @@ Engine OCR và pipeline đều có thể mở rộng bằng cách thêm một en
 - Hai chế độ trích xuất:
   - `markdown`: nhận diện **bảng có viền** (OpenCV) + **đoạn văn** ngoài bảng, reflow câu liền mạch, xuất `.md`.
   - `data`: gom từ thành dòng kèm `bbox` + `confidence`, xuất `.json`.
+- Hậu xử lý (tùy chọn): sửa lỗi chính tả/dấu/khoảng trắng của text OCR bằng LLM qua OpenRouter — best-effort, mỗi trang một request, lỗi thì giữ nguyên text gốc.
 - Xử lý best-effort theo từng trang: lỗi một trang không làm hỏng cả tài liệu.
 
 ## Engine hiện có
@@ -56,9 +57,25 @@ lang: vie                                   # eng | vie
 preprocess_steps: [grayscale, deskew, binarize]
 input_dir: ./input
 output_dir: ./output
+postprocess: true                           # sửa lỗi text OCR bằng LLM (OpenRouter)
 ```
 
 Thứ tự ưu tiên cấu hình: **default pipeline < config.yaml < (override)**.
+
+### Hậu xử lý LLM (tùy chọn)
+
+Khi `postprocess: true`, mỗi trang sau khi trích xuất được gửi một request tới
+OpenRouter để sửa lỗi chính tả/dấu/khoảng trắng. Cần đặt API key trong `.env`:
+
+```bash
+cp .env.example .env
+# rồi điền OPENROUTER_API_KEY=... (lấy key miễn phí tại https://openrouter.ai/keys)
+```
+
+Nếu thiếu `OPENROUTER_API_KEY`, bước hậu xử lý sẽ in cảnh báo và **bỏ qua** —
+text gốc được giữ nguyên. Mọi lỗi gọi API cũng fallback về text gốc (không làm
+hỏng tài liệu). Hậu xử lý chỉ sửa nội dung text; `bbox` và `confidence` ở chế độ
+`data` được giữ nguyên.
 
 ## Luồng hoạt động
 
@@ -101,6 +118,7 @@ ocr_core/
   pipeline.py            # load() input, run(), run_to_file(), to_markdown()
   preprocessing.py       # grayscale / deskew / binarize
   extract.py             # rẽ nhánh theo mode: layout (markdown) | lines (data)
+  postprocess.py         # hậu xử lý: sửa text OCR bằng LLM (OpenRouter), tùy chọn
   tables.py              # phát hiện bảng có viền + lưới ô (chỉ hình học)
   engines/
     base.py              # interface OCREngine + kiểu Word

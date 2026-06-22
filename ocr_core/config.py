@@ -27,8 +27,13 @@ class Config:
     )
     input_dir: str = "./input"
     output_dir: str = "./output"
+    postprocess: bool = False  # LLM correction of OCR output (OpenRouter)
 
     def validate(self) -> "Config":
+        if not isinstance(self.postprocess, bool):
+            raise ConfigError(
+                f"postprocess must be a bool, got {type(self.postprocess).__name__}"
+            )
         if self.engine not in VALID_ENGINES:
             raise ConfigError(
                 f"unknown engine {self.engine!r}; valid: {sorted(VALID_ENGINES)}"
@@ -58,8 +63,8 @@ DEFAULTS = Config()
 
 # Pipeline profiles: name -> default Config. New pipeline = add an entry here.
 PIPELINES: dict[str, "Config"] = {
-    "legal": Config(mode="markdown"),
-    "invoice": Config(mode="data"),
+    "legal": Config(mode="markdown", postprocess=True),
+    "invoice": Config(mode="data", postprocess=True),
 }
 
 _ALLOWED_KEYS = set(Config.__dataclass_fields__)

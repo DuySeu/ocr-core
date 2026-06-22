@@ -10,6 +10,7 @@ from pathlib import Path
 from PIL import Image
 
 from . import extract, preprocessing
+from . import postprocess as postprocess_mod
 from .config import Config, DEFAULTS
 from .engines import get_engine
 
@@ -63,6 +64,8 @@ def run(input_path: str, config: Config = DEFAULTS) -> dict:
         try:
             img = preprocessing.apply(page.image, config.preprocess_steps)
             blocks = extract.extract(engine, img, config)
+            if config.postprocess:
+                blocks = postprocess_mod.correct_page(blocks, config)
             logger.info("page %d: %d block(s)", page.page, len(blocks))
             results.append({"page": page.page, "blocks": blocks, "error": None})
         except Exception as e:  # best-effort per page

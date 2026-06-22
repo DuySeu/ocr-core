@@ -13,3 +13,7 @@ opencv-python
 
 # Config file parsing (YAML)
 PyYAML
+
+# Post-processing: LLM correction via OpenRouter
+openrouter
+python-dotenv

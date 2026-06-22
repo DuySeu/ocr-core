@@ -4,5 +4,6 @@ __pycache__/
 input/*
 output/*
 .pytest_cache
+.env
 legal
 invoice

@@ -5,3 +5,6 @@ preprocess_steps: [grayscale, deskew, binarize]
 
 input_dir: ./input
 output_dir: ./output
+
+# LLM correction of OCR output via OpenRouter (requires OPENROUTER_API_KEY in .env)
+postprocess: true

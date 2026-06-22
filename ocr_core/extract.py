@@ -17,7 +17,7 @@ def extract(engine: OCREngine, image, config) -> list[dict]:
     if config.mode == "data":
         # data mode: word + bbox (x,y,w,h) + confidence + line_key.
         groups: dict[tuple, list[Word]] = {}
-        for w in engine.recognize_words(image, config.lang):
+        for w in engine.recognize_words(image, config.lang_list()):
             groups.setdefault(w.line_key, []).append(w)
 
         lines = []
@@ -36,22 +36,22 @@ def extract(engine: OCREngine, image, config) -> list[dict]:
 
     # markdown mode: prose band ngoài bảng, xếp theo thứ tự y.
     tables = tables_mod.detect_tables(np.array(image))
-    items = [(t.box[1], _table_block(engine, image, t, config.lang)) for t in tables]
+    items = [(t.box[1], _table_block(engine, image, t, config.lang_list())) for t in tables]
     for y, box in _prose_bands(image.size, [t.box for t in tables]):
-        text = engine.recognize_text(image.crop(box), config.lang)
+        text = engine.recognize_text(image.crop(box), config.lang_list())
         items += [
             (y, {"type": "paragraph", "text": p}) for p in _split_paragraphs(text)
         ]
     return [b for _, b in sorted(items, key=lambda it: it[0])]
 
 
-def _table_block(engine: OCREngine, image, t, lang: str) -> dict:
+def _table_block(engine: OCREngine, image, t, langs: list[str]) -> dict:
     grid = [[""] * t.n_cols for _ in range(t.n_rows)]
     section: dict[int, str] = {}
     for cell in t.cells:
         x, y, w, h = cell.box
         txt = " ".join(
-            engine.recognize_text(image.crop((x, y, x + w, y + h)), lang, psm=6).split()
+            engine.recognize_text(image.crop((x, y, x + w, y + h)), langs, psm=6).split()
         )
         if cell.c1 - cell.c0 == t.n_cols:  # hàng tiêu đề trải hết bảng
             section[cell.r0] = txt

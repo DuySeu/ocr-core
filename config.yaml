@@ -1,5 +1,5 @@
-engine: paddleocr
-lang: vie
+engine: tesseract
+langs: [vie, eng]
 
 preprocess_steps: [grayscale, deskew, binarize]
 

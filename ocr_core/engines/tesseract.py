@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class TesseractEngine(OCREngine):
-    def recognize_words(self, image: Image.Image, lang: str) -> list[Word]:
+    def recognize_words(self, image: Image.Image, langs: list[str]) -> list[Word]:
         pytesseract, Output = self._import()
         from pytesseract import TesseractNotFoundError
 
+        lang = "+".join(langs)
         try:
             data = pytesseract.image_to_data(image, lang=lang, output_type=Output.DICT)
         except TesseractNotFoundError as e:
@@ -37,10 +38,11 @@ class TesseractEngine(OCREngine):
         logger.debug("tesseract recognized %d word(s) (lang=%s)", len(words), lang)
         return words
 
-    def recognize_text(self, image: Image.Image, lang: str, psm: int | None = None) -> str:
+    def recognize_text(self, image: Image.Image, langs: list[str], psm: int | None = None) -> str:
         pytesseract, _ = self._import()
         from pytesseract import TesseractNotFoundError
 
+        lang = "+".join(langs)
         try:
             cfg = f"--psm {psm}" if psm is not None else ""
             return pytesseract.image_to_string(image, lang=lang, config=cfg)

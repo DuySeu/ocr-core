@@ -43,6 +43,9 @@ def test_extract_layout_table_with_section(monkeypatch):
     class Cfg:
         mode, lang = "markdown", "vie"
 
+        def lang_list(self):
+            return [self.lang]
+
     blocks = extract.extract(_Engine(), _Image(texts), Cfg())
     assert blocks == [{"type": "table", "header": True,
                        "rows": [["H1", "H2"], ["SEC"], ["A", "B"]]}]
@@ -51,6 +54,9 @@ def test_extract_layout_table_with_section(monkeypatch):
 def test_extract_data_mode_groups_lines():
     class Cfg:
         mode, lang = "data", "vie"
+
+        def lang_list(self):
+            return [self.lang]
 
     out = extract.extract(_Engine(), object(), Cfg())
     assert out == [{"text": "a b", "bbox": [0, 0, 22, 10], "confidence": 85.0}]

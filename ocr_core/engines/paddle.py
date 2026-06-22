@@ -18,9 +18,9 @@ _LANG = {"vie": "vi", "eng": "en"}  # Tesseract -> Paddle codes; else pass-throu
 
 
 class PaddleOCREngine(OCREngine):
-    def recognize_words(self, image: Image.Image, lang: str) -> list[Word]:
+    def recognize_words(self, image: Image.Image, langs: list[str]) -> list[Word]:
         words = []
-        for box, text, score in self._ocr(image, lang):
+        for box, text, score in self._ocr(image, langs):
             xs = [int(p[0]) for p in box]
             ys = [int(p[1]) for p in box]
             x, y = min(xs), min(ys)
@@ -34,14 +34,14 @@ class PaddleOCREngine(OCREngine):
             )
         return words
 
-    def recognize_text(self, image: Image.Image, lang: str, psm: int | None = None) -> str:
+    def recognize_text(self, image: Image.Image, langs: list[str], psm: int | None = None) -> str:
         # psm ignored (Tesseract concept); sort detections by y then x.
-        items = sorted(self._ocr(image, lang), key=lambda it: (it[0][0][1], it[0][0][0]))
+        items = sorted(self._ocr(image, langs), key=lambda it: (it[0][0][1], it[0][0][0]))
         return "\n".join(text for _, text, _ in items)
 
-    def _ocr(self, image: Image.Image, lang: str) -> list:
+    def _ocr(self, image: Image.Image, langs: list[str]) -> list:
         """Normalize PaddleOCR output to [(box, text, score), ...]."""
-        res = self._reader(lang).ocr(np.array(image.convert("RGB")))  # 3ch: Paddle needs HxWx3
+        res = self._reader(langs[0]).ocr(np.array(image.convert("RGB")))  # 3ch: Paddle needs HxWx3
         if not res:
             return []
         r0 = res[0]
@@ -60,7 +60,7 @@ class PaddleOCREngine(OCREngine):
                     "paddleocr not installed: pip install paddleocr paddlepaddle"
                 ) from e
             params = inspect.signature(PaddleOCR.__init__).parameters
-            kw = {"lang": code}
+            kw = {"lang": code, "enable_mkldnn": False}  # oneDNN PIR breaks PP-OCRv5 on paddle 3.x
             if "show_log" in params:
                 kw["show_log"] = False
             if "use_angle_cls" in params:  # 2.x
@@ -70,6 +70,9 @@ class PaddleOCREngine(OCREngine):
             for k in ("use_doc_orientation_classify", "use_doc_unwarping"):
                 if k in params:  # 3.x: skip heavy doc preprocessing (we deskew already)
                     kw[k] = False
+            if "text_det_limit_side_len" in params:  # 3.x: cap detector input to fit CPU RAM
+                kw["text_det_limit_type"] = "max"
+                kw["text_det_limit_side_len"] = 960
             if os.environ.get("PADDLE_USE_GPU"):
                 if "use_gpu" in params:  # 2.x
                     kw["use_gpu"] = True

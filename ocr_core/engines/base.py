@@ -21,9 +21,9 @@ class Word:
 
 class OCREngine(ABC):
     @abstractmethod
-    def recognize_words(self, image: Image.Image, lang: str) -> list[Word]:
+    def recognize_words(self, image: Image.Image, langs: list[str]) -> list[Word]:
         """data mode: words with text, bbox, confidence, line_key."""
 
     @abstractmethod
-    def recognize_text(self, image: Image.Image, lang: str, psm: int | None = None) -> str:
+    def recognize_text(self, image: Image.Image, langs: list[str], psm: int | None = None) -> str:
         """markdown mode: prose thuần (psm tùy chọn cho OCR ô bảng)."""

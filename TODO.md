@@ -4,6 +4,10 @@
 
 [] Worker for enhance performace
 
+[x] Add init script to setup first clone repo(Support for MacOS, Window, Linux(Ubuntu/Amazon Linux 2023))
+
+[] Add postprocessing for ocr pipeline
+
 ## Optimize code & Enhance performance
 
 [] Add ocr engine that strongly support vietnamese

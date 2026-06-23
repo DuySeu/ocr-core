@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-MODEL = "nvidia/nemotron-3.5-content-safety:free"
+MODEL = "openrouter/owl-alpha"
 TIMEOUT = 60  # seconds
 
 SYSTEM_PROMPT = (

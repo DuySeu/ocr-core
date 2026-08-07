@@ -18,7 +18,7 @@ is best-effort: any failure falls back to the original, uncorrected text.
   `invoice` (data: line `text`).
 - **Batching:** One request per page (all of the page's text sent together,
   corrections mapped back by index).
-- **Integration:** Simple module `ocr_core/postprocess.py` called from
+- **Integration:** Simple module `core/postprocess.py` called from
   `pipeline.run()`. No corrector registry (YAGNI).
 - **Config:** Single `postprocess: bool` field. Model and timeout are module
   constants. API key from `OPENROUTER_API_KEY` in `.env`.
@@ -29,7 +29,7 @@ is best-effort: any failure falls back to the original, uncorrected text.
 
 ## Section 1 — Architecture & data flow
 
-New module `ocr_core/postprocess.py` performs LLM-based correction per page,
+New module `core/postprocess.py` performs LLM-based correction per page,
 inserted into `pipeline.run()` between extraction and result collection.
 
 Current per-page flow:

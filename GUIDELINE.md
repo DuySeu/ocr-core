@@ -102,7 +102,7 @@ input_dir: ./input
 output_dir: ./out
 ```
 
-Các trường hợp lệ và giá trị mặc định (xem `ocr_core/config.py`):
+Các trường hợp lệ và giá trị mặc định (xem `core/config.py`):
 
 | Trường | Mặc định | Giá trị hợp lệ |
 |--------|----------|----------------|
@@ -162,8 +162,8 @@ Trang lỗi được chèn `<!-- page N error: ... -->`, các trang khác vẫn 
 ## 5. Dùng như thư viện (API)
 
 ```python
-from ocr_core import load, run, run_to_file
-from ocr_core.config import PIPELINES
+from core import load, run, run_to_file
+from core.config import PIPELINES
 
 # Lấy config từ pipeline có sẵn rồi override
 cfg = load(overrides={"lang": "eng"}, base=PIPELINES["invoice"])
@@ -179,11 +179,11 @@ vào `cfg.output_dir` và trả về đường dẫn.
 
 ## 6. Tạo pipeline mới
 
-Pipeline = một entry trong `PIPELINES` (trong `ocr_core/config.py`). Không cần
+Pipeline = một entry trong `PIPELINES` (trong `core/config.py`). Không cần
 class riêng, không cần sửa core. Subcommand CLI sinh tự động từ key.
 
 ```python
-# ocr_core/config.py
+# core/config.py
 PIPELINES: dict[str, "Config"] = {
     "legal":   Config(mode="markdown"),
     "invoice": Config(mode="data"),
@@ -204,7 +204,7 @@ nếu không sẽ `ConfigError` khi chạy.
 
 ## 7. Thêm OCR engine mới
 
-Engine phải cài đặt interface `OCREngine` (`ocr_core/engines/base.py`) với hai
+Engine phải cài đặt interface `OCREngine` (`core/engines/base.py`) với hai
 phương thức:
 
 - `recognize_words(image, lang) -> list[Word]` — dùng cho `mode="data"`. Mỗi
@@ -220,7 +220,7 @@ Một engine chỉ cần hỗ trợ mode bạn định dùng; mode không hỗ t
 ### Bước 1 — tạo file engine
 
 ```python
-# ocr_core/engines/easyocr.py
+# core/engines/easyocr.py
 from __future__ import annotations
 
 from PIL import Image
@@ -262,7 +262,7 @@ class EasyOCREngine(OCREngine):
 ### Bước 2 — đăng ký engine
 
 ```python
-# ocr_core/engines/__init__.py
+# core/engines/__init__.py
 from .easyocr import EasyOCREngine
 
 _ENGINES = {
@@ -274,7 +274,7 @@ _ENGINES = {
 ### Bước 3 — cho phép dùng trong config
 
 ```python
-# ocr_core/config.py
+# core/config.py
 VALID_ENGINES = {"tesseract", "easyocr"}
 ```
 
@@ -319,11 +319,11 @@ preprocess_steps: [deskew]      # XEM LƯU Ý bên dưới
 ## 8. Thêm bước tiền xử lý mới
 
 Mỗi bước là một hàm `np.ndarray -> np.ndarray`, đăng ký vào dict `STEPS`
-(`ocr_core/preprocessing.py`) và khai báo hợp lệ trong `VALID_STEPS`
-(`ocr_core/config.py`).
+(`core/preprocessing.py`) và khai báo hợp lệ trong `VALID_STEPS`
+(`core/config.py`).
 
 ```python
-# ocr_core/preprocessing.py
+# core/preprocessing.py
 def _denoise(img: np.ndarray) -> np.ndarray:
     return cv2.medianBlur(img, 3)
 
@@ -332,7 +332,7 @@ STEPS = {"grayscale": _grayscale, "deskew": _deskew,
 ```
 
 ```python
-# ocr_core/config.py
+# core/config.py
 VALID_STEPS = {"grayscale", "deskew", "binarize", "denoise"}
 ```
 

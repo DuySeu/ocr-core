@@ -39,7 +39,7 @@ cột `STT | Hạng mục | Yêu cầu kỹ thuật`, có **ô gộp** (rowspan 
 ## Module Layout
 
 ```
-ocr_core/
+core/
   config.py        # + mode "markdown"; BỎ mode "text"
   pipeline.py      # run() không đổi; run_to_file() rẽ serializer theo mode
   extract.py       # extract(): nhánh data | markdown (BỎ nhánh text);

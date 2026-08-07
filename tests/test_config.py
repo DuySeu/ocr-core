@@ -1,6 +1,6 @@
 import pytest
 
-from ocr_core.config import Config, ConfigError, PIPELINES, load
+from core.config import Config, ConfigError, PIPELINES, load
 
 
 def test_legal_default_is_markdown():

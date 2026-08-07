@@ -44,7 +44,7 @@ input (image/PDF)
 
 ```
 main.py                # launcher: python main.py <function>
-ocr_core/
+core/
   pipeline.py          # orchestrates loader → preprocess → engine → aggregate
   loaders.py           # PDF/image → list of page images
   preprocessing.py     # named, toggleable steps
@@ -175,7 +175,7 @@ python main.py process some/scan.pdf    # single explicit file
 python main.py process -c my.yaml       # with config overrides
 ```
 
-- `main.py` calls `ocr_core.cli.main()`.
+- `main.py` calls `core.cli.main()`.
 - `process` is the subcommand; room to add more later (e.g. `version`).
 - With no path, all files in `input/` are processed (per-file best-effort).
 - CLI prints a short summary (e.g. `3 ok, 1 failed`).

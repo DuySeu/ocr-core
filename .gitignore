@@ -7,3 +7,7 @@ output/*
 .env
 legal
 invoice
+
+.claude/
+evaluate/dataset/*
+evaluate/ground_truth/*

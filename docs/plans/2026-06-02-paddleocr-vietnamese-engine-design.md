@@ -32,9 +32,9 @@ vụ **cả hai mode** `data` và `markdown`. Engine là plugin thuần sau inte
 
 | File | Thay đổi | Cỡ |
 | --- | --- | --- |
-| `ocr_core/engines/paddle.py` | **Mới.** `PaddleOCREngine` + lang map + reader cache. | ~60 dòng |
-| `ocr_core/engines/__init__.py` | Thêm `"paddleocr": PaddleOCREngine` vào `_ENGINES`. | 2 dòng |
-| `ocr_core/config.py` | Thêm `"paddleocr"` vào `VALID_ENGINES`. | 1 dòng |
+| `core/engines/paddle.py` | **Mới.** `PaddleOCREngine` + lang map + reader cache. | ~60 dòng |
+| `core/engines/__init__.py` | Thêm `"paddleocr": PaddleOCREngine` vào `_ENGINES`. | 2 dòng |
+| `core/config.py` | Thêm `"paddleocr"` vào `VALID_ENGINES`. | 1 dòng |
 | `tests/test_paddle.py` | **Mới.** Mock `paddleocr`, assert mapping. | ~40 dòng |
 | `GUIDELINE.md` / `README.md` | Tài liệu cài đặt, cách bật, lưu ý preprocessing. | docs |
 
@@ -113,11 +113,11 @@ def _reader(self, lang: str):
 ## Registration & wiring
 
 ```python
-# ocr_core/engines/__init__.py
+# core/engines/__init__.py
 from .paddle import PaddleOCREngine
 _ENGINES = {"tesseract": TesseractEngine, "paddleocr": PaddleOCREngine}
 
-# ocr_core/config.py
+# core/config.py
 VALID_ENGINES = {"tesseract", "paddleocr"}
 ```
 

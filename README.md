@@ -21,7 +21,7 @@ Engine OCR và pipeline đều có thể mở rộng bằng cách thêm một en
 | `paddleocr` | PaddleOCR (PP-OCR) | Tiếng Việt mạnh, offline; **opt-in**. Cài: `pip install paddleocr paddlepaddle` (hỗ trợ 2.x & 3.x). |
 | `easyocr` | EasyOCR | Đa ngôn ngữ trong một lần chạy (vd hóa đơn lẫn VI+EN), offline; **opt-in**. Cài: `pip install easyocr`. Cấu hình `langs: [vie, eng]`. |
 
-Đăng ký engine mới tại `ocr_core/engines/__init__.py` (`_ENGINES`), implement interface `OCREngine` trong `engines/base.py`.
+Đăng ký engine mới tại `core/engines/__init__.py` (`_ENGINES`), implement interface `OCREngine` trong `engines/base.py`.
 
 ## Pipeline hiện có
 
@@ -30,7 +30,7 @@ Engine OCR và pipeline đều có thể mở rộng bằng cách thêm một en
 | `legal` | `markdown` | `.md` | Văn bản hành chính/pháp lý: bảng + đoạn văn theo layout. |
 | `invoice` | `data` | `.json` | Hóa đơn: dòng text kèm tọa độ & độ tin cậy. |
 
-Thêm pipeline mới = thêm một entry vào `PIPELINES` trong `ocr_core/config.py`.
+Thêm pipeline mới = thêm một entry vào `PIPELINES` trong `core/config.py`.
 
 ## Cài đặt
 
@@ -113,7 +113,7 @@ flowchart TD
 ```
 main.py                  # entry point CLI: chọn & chạy pipeline
 config.yaml              # override cấu hình (tùy chọn)
-ocr_core/
+core/
   config.py              # Config, validate, PIPELINES (legal/invoice), load()
   pipeline.py            # load() input, run(), run_to_file(), to_markdown()
   preprocessing.py       # grayscale / deskew / binarize

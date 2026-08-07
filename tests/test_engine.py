@@ -3,7 +3,7 @@ import types
 
 from PIL import Image
 
-from ocr_core.engines.tesseract import TesseractEngine
+from core.engines.tesseract import TesseractEngine
 
 
 def test_recognize_text_psm(monkeypatch):

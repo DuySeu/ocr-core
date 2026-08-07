@@ -1,5 +1,5 @@
-from ocr_core import pipeline
-from ocr_core.config import Config
+from core import pipeline
+from core.config import Config
 
 
 def test_run_to_file_markdown(tmp_path, monkeypatch):

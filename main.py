@@ -7,10 +7,10 @@ import logging
 import sys
 from pathlib import Path
 
-import ocr_core.pipeline as pipeline
-from ocr_core import config as config_mod
-from ocr_core.config import PIPELINES
-from ocr_core.pipeline import SUPPORTED_EXTS
+import core.pipeline as pipeline
+from core import config as config_mod
+from core.config import PIPELINES
+from core.pipeline import SUPPORTED_EXTS
 
 CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
 

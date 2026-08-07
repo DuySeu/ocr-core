@@ -36,13 +36,13 @@ tải model. Tesseract vẫn là engine mặc định — không phá vỡ hành
 
 | File | Thay đổi | Cỡ |
 | --- | --- | --- |
-| `ocr_core/engines/easyocr.py` | **Mới.** `EasyOCREngine` + lang map + reader cache. | ~35 dòng |
-| `ocr_core/engines/base.py` | Đổi signature `lang: str` → `langs: list[str]`. | 2 dòng |
-| `ocr_core/engines/tesseract.py` | `lang="+".join(langs)` tại chỗ gọi backend. | ~2 dòng |
-| `ocr_core/engines/paddle.py` | Dùng `langs[0]` thay `lang`. | ~2 dòng |
-| `ocr_core/engines/__init__.py` | Thêm `"easyocr": EasyOCREngine` vào `_ENGINES`. | 2 dòng |
-| `ocr_core/config.py` | Thêm field `langs` + helper `lang_list()` + validate; `"easyocr"` vào `VALID_ENGINES`. | ~8 dòng |
-| `ocr_core/extract.py` | 3 call site: `config.lang` → `config.lang_list()`. | 3 dòng |
+| `core/engines/easyocr.py` | **Mới.** `EasyOCREngine` + lang map + reader cache. | ~35 dòng |
+| `core/engines/base.py` | Đổi signature `lang: str` → `langs: list[str]`. | 2 dòng |
+| `core/engines/tesseract.py` | `lang="+".join(langs)` tại chỗ gọi backend. | ~2 dòng |
+| `core/engines/paddle.py` | Dùng `langs[0]` thay `lang`. | ~2 dòng |
+| `core/engines/__init__.py` | Thêm `"easyocr": EasyOCREngine` vào `_ENGINES`. | 2 dòng |
+| `core/config.py` | Thêm field `langs` + helper `lang_list()` + validate; `"easyocr"` vào `VALID_ENGINES`. | ~8 dòng |
+| `core/extract.py` | 3 call site: `config.lang` → `config.lang_list()`. | 3 dòng |
 | `tests/test_easyocr.py` | **Mới.** Mock `easyocr`, assert mapping. | ~40 dòng |
 | `tests/test_paddle.py`, `tests/test_engine.py` | Cập nhật call site sang list. | vài dòng |
 | `README.md` | Thêm dòng engine `easyocr` vào bảng. | docs |

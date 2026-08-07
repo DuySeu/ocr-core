@@ -4,9 +4,9 @@ import types
 import pytest
 from PIL import Image
 
-import ocr_core.engines.easyocr as easyocr_mod
-from ocr_core.engines.base import EngineError
-from ocr_core.engines.easyocr import EasyOCREngine
+import core.engines.easyocr as easyocr_mod
+from core.engines.base import EngineError
+from core.engines.easyocr import EasyOCREngine
 
 
 @pytest.fixture(autouse=True)

@@ -4,9 +4,9 @@ import types
 import pytest
 from PIL import Image
 
-import ocr_core.engines.paddle as paddle_mod
-from ocr_core.engines.base import EngineError
-from ocr_core.engines.paddle import PaddleOCREngine
+import core.engines.paddle as paddle_mod
+from core.engines.base import EngineError
+from core.engines.paddle import PaddleOCREngine
 
 
 @pytest.fixture(autouse=True)

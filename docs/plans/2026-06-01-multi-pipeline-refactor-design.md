@@ -37,7 +37,7 @@ Yêu cầu: dễ mở rộng thêm pipeline mới về sau mà không phải s�
 
 ```
 main.py                # launcher: subcommand sinh từ registry, bỏ positional path
-ocr_core/
+core/
   pipeline.py          # run(): skeleton giữ nguyên; engine+gom -> 1 lời gọi extract
   extract.py           # MỚI (mở rộng từ aggregate.py): gom theo granularity
   engines/
@@ -232,4 +232,4 @@ Framework: `pytest`. Fixture ảnh in-memory bằng PIL (không cần binary).
 - `config.py`: thêm `mode`, `granularity` + validate tổ hợp.
 - `main.py`: bỏ command `process` + positional `path`; sinh subcommand từ registry.
 - `pipeline.py`: `lines` → `blocks`; gọi `extract`; `run_to_file` thêm `pipeline`.
-- Thêm `PIPELINES` registry vào `ocr_core/config.py` (cùng chỗ với `Config`).
+- Thêm `PIPELINES` registry vào `core/config.py` (cùng chỗ với `Config`).

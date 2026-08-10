@@ -9,5 +9,6 @@ legal
 invoice
 
 .claude/
-evaluate/dataset/*
-evaluate/ground_truth/*
+dataset/*
+ground_truth/*
+!.gitkeep

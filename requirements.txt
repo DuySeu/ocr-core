@@ -17,3 +17,8 @@ PyYAML
 # Post-processing: LLM correction via OpenRouter
 openrouter
 python-dotenv
+
+# Evaluation harness (evaluate/): WER/CER, TEDS, IoU
+rapidfuzz
+apted
+python-docx

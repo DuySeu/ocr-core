@@ -1,10 +1,9 @@
-engine: tesseract
+engine: chandra
 langs: [vie, eng]
 
 preprocess_steps: [grayscale, deskew, binarize]
 
-input_dir: ./input
-output_dir: ./output
+input_dir: ./dataset
+output_dir: ./output/low_quality_handwritten
 
-# LLM correction of OCR output via OpenRouter (requires OPENROUTER_API_KEY in .env)
-postprocess: true
+ground_truth_dir: ./ground_truth/handwritten # directory containing ground truth text files for evaluation

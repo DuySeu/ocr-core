@@ -1,7 +1,9 @@
 # Evaluation harness
 
 Scores one engine's OCR output against a ground-truth directory. Reads `config.yaml`
-at the repo root, writes `evaluate/results/<engine>/result.md`.
+at the repo root, writes `evaluate/results/<engine>/<output_dir name>_results.md` —
+e.g. `output_dir: ./output/high_quality_handwritten` writes
+`evaluate/results/chandra/high_quality_handwritten_results.md`.
 
 Nothing here imports `core`. The evaluator reads the files an engine already wrote,
 so it scores any provider that emits markdown — and, where the provider emits boxes,
@@ -10,10 +12,11 @@ COCO — without knowing how they were produced.
 ## Running
 
 ```bash
-python -m evaluate                            # engine + directories from ./config.yaml
-python -m evaluate --doc tonghopdon           # one document, by filename stem
-python -m evaluate --iou-threshold 0.75       # stricter box matching (default 0.5)
-python -m evaluate --config other.yaml        # a different config file
+python -m evaluate.run                            # engine + directories from ./config.yaml
+python -m evaluate.run --doc tonghopdon           # one document, by filename stem
+python -m evaluate.run --iou-threshold 0.75       # stricter box matching (default 0.5)
+python -m evaluate.run --table-threshold 0.7      # stricter table pairing (default 0.5)
+python -m evaluate.run --config other.yaml        # a different config file
 ```
 
 The three keys read from `config.yaml` are `engine`, `output_dir` and
@@ -31,10 +34,15 @@ output_dir/        tonghopdon.md      tonghopdon_metadata.json
 ground_truth_dir/  tonghopdon.md   or tonghopdon.docx   [+ tonghopdon.coco.json]
 ```
 
+Two predictions sharing a stem is an error, not a silent pick, the same rule the
+ground-truth side already had.
+
 Ground truth is read from `.md`, `.markdown`, `.txt` or `.docx`. In a `.docx` the body
 is walked directly, so table cells are read in document order alongside the
 paragraphs — `document.paragraphs` skips them, and text in a table is text the OCR was
-asked to read.
+asked to read. Cells come from `table_extract.walk_docx_cells` rather than `row.cells`,
+which reports a vertically merged cell once per row it spans; a cell counted twice in
+gold is a cell the engine is charged for twice.
 
 ## Metrics
 
@@ -43,6 +51,7 @@ asked to read.
 | 1 · Text, document-level | CER, CER tone-blind, WER | predicted `.md` + ground-truth text | lower is better |
 | 2 · Layout / bbox | P, R, F1, mIoU per category + micro | COCO on **both** sides | higher is better |
 | 3 · Text, element-level | CER, CER tone-blind, WER over matched boxes | same as section 2 | lower is better |
+| 4 · Tables | TEDS, TEDS-Struct, recall | tables on **both** sides; no boxes needed | higher is better |
 
 Two normalization ladders run on both sides. `strict` is the reporting default;
 `tone_blind` strips only the five Vietnamese tone marks and keeps the vowel-quality
@@ -58,9 +67,31 @@ Rates aggregate corpus-level — total edit distance over total gold characters 
 the mean of per-document rates. Mean-of-rates gives a three-character page number the
 same weight as a two-thousand-character paragraph.
 
-**Out of scope for this run**: table (TEDS, TEDS-Struct) and picture. `metrics/table.py`
-is complete and tested but unwired; the report names both so the absence is on the
-record.
+**Out of scope for this run**: picture detection and captioning. The report names it so
+the absence is on the record.
+
+## Tables
+
+Tables are paired **by content, not by box**, so a markdown or HTML document with no
+COCO on either side still gets a table score. Three source forms converge to HTML in
+`table_extract.py` before anything is compared: `<table>` markup embedded in markdown,
+markdown pipe tables, and real `.docx` tables. Predictions and ground truth for one
+stem routinely use different forms: `tonghopdon` gold is pipe and its prediction is
+`<table>`, so comparing the raw forms would measure the writing style, not the engine.
+
+Pairing is greedy on TEDS-Struct, then on full TEDS, then on index. The second key is
+load-bearing rather than a refinement: same-shape tables all score TEDS-Struct 1.0, so
+structure alone cannot tell them apart and the pairing would depend on input order.
+
+`recall` is printed beside every TEDS and never alone. A mean over matched pairs is
+gameable without it: emit one perfect table, drop the rest, score 1.0.
+
+A document with no ground-truth file reads `not scoreable - no ground truth`, which is
+a different state from a gold file that happens to contain no tables. A document with no
+table on either side reads `-` rather than `n/a`, because nothing was attempted.
+
+`metrics/table.py` keeps its box-paired entry point, `score_tables`, for when a COCO
+producer exists. Nothing in this repo writes one yet.
 
 ## Adding an engine
 

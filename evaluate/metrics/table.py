@@ -7,6 +7,11 @@ are dropped because they carry no structure the metric scores while the
 page-spanning table splice would otherwise invent differences.
 
 TEDS is higher-is-better, unlike CER and WER.
+
+Two entry points, because tables can be paired two ways. ``score_tables`` scores
+tables that bbox matching already paired, and needs COCO on both sides.
+``pair_tables`` plus ``score_table_pairs`` pair by content instead, for the far more
+common case of a markdown or HTML document with no boxes at all.
 """
 
 from __future__ import annotations
@@ -24,6 +29,11 @@ TABLE_CATEGORY = "table"
 # Wrappers dropped from the tree; their children are lifted into the parent.
 SKIP_TAGS = frozenset({"thead", "tbody", "tfoot"})
 KEEP_TAGS = frozenset({"tr", "td", "th"})
+
+# Candidate matrix size above which document-level pairing declines to run. A tree
+# edit per candidate is affordable at the sizes real documents reach; a document with
+# hundreds of tables on both sides is not, and a silent cap would read as a score.
+MAX_PAIR_CANDIDATES = 2000
 
 
 @dataclass
@@ -46,6 +56,29 @@ class TableScore:
     teds: float | None
     teds_struct: float | None
     unparseable_ids: list[int]
+
+
+@dataclass(frozen=True)
+class TablePair:
+    """A predicted table matched to a gold table, with both scores that judged it."""
+
+    predicted_index: int
+    gold_index: int
+    teds_struct: float
+    teds: float
+
+
+@dataclass(frozen=True)
+class DocumentTableScore:
+    """Table quality for one document, paired without boxes. Higher is better."""
+
+    teds: float | None  # mean over matched pairs; None when none matched
+    teds_struct: float | None
+    n_matched: int
+    n_gold: int
+    n_pred: int
+    table_recall: float | None  # n_matched / n_gold; None when there is nothing to divide
+    note: str | None  # why pairing was skipped, when it was
 
 
 class TableError(Exception):
@@ -92,8 +125,10 @@ def parse_table(markup: str) -> TableNode | None:
 def teds(predicted: TableNode, gold: TableNode, structure_only: bool = False) -> float:
     distance = APTED(predicted, gold, TedsConfig(structure_only)).compute_edit_distance()
 
+    # An optimal path preferring insert+delete over rename can cost more than the
+    # larger tree has nodes, so the raw ratio is clamped rather than left negative
     largest = max(_count_nodes(predicted), _count_nodes(gold))
-    return 1.0 - distance / largest if largest else 1.0
+    return max(0.0, 1.0 - distance / largest) if largest else 1.0
 
 
 # Score every matched table under both the full and structure-only cost models.
@@ -132,6 +167,77 @@ def score_tables(results: list[MatchResult]) -> TableScore:
         teds=sum(full) / len(full) if full else None,
         teds_struct=sum(structural) / len(structural) if structural else None,
         unparseable_ids=unparseable_ids,
+    )
+
+
+# Pair predicted tables to gold greedily, by structure and then by full score.
+def pair_tables(
+    predicted: list[TableNode], gold: list[TableNode], threshold: float
+) -> tuple[list[TablePair], str | None]:
+    # Decline rather than hang, and say so, when the candidate matrix is too large
+    if len(predicted) * len(gold) > MAX_PAIR_CANDIDATES:
+        return [], (
+            f"pairing skipped: {len(predicted)} predicted x {len(gold)} gold tables "
+            f"exceeds the {MAX_PAIR_CANDIDATES}-candidate cap"
+        )
+
+    # Score every candidate under both cost models before choosing any
+    candidates = [
+        TablePair(
+            predicted_index=predicted_index,
+            gold_index=gold_index,
+            teds_struct=teds(predicted_tree, gold_tree, structure_only=True),
+            teds=teds(predicted_tree, gold_tree),
+        )
+        for predicted_index, predicted_tree in enumerate(predicted)
+        for gold_index, gold_tree in enumerate(gold)
+    ]
+
+    # Structure says which table is which; the full score separates same-shape tables,
+    # which structure alone scores 1.0 for. Indices break what is left, so runs repeat.
+    candidates.sort(
+        key=lambda c: (-c.teds_struct, -c.teds, c.predicted_index, c.gold_index)
+    )
+
+    pairs: list[TablePair] = []
+    taken_predicted: set[int] = set()
+    taken_gold: set[int] = set()
+    for candidate in candidates:
+        # Sorted descending, so the first candidate under the floor ends the pass
+        if candidate.teds_struct < threshold:
+            break
+        if candidate.predicted_index in taken_predicted:
+            continue
+        if candidate.gold_index in taken_gold:
+            continue
+
+        pairs.append(candidate)
+        taken_predicted.add(candidate.predicted_index)
+        taken_gold.add(candidate.gold_index)
+
+    return pairs, None
+
+
+# Score matched table pairs, carrying the counts that make the mean readable.
+def score_table_pairs(
+    pairs: list[TablePair],
+    predicted: list[TableNode],
+    gold: list[TableNode],
+    note: str | None,
+) -> DocumentTableScore:
+    n_matched = len(pairs)
+
+    # A pass that never ran measured nothing, and 0/n would read as a measured miss
+    recall = n_matched / len(gold) if gold and note is None else None
+
+    return DocumentTableScore(
+        teds=sum(p.teds for p in pairs) / n_matched if n_matched else None,
+        teds_struct=sum(p.teds_struct for p in pairs) / n_matched if n_matched else None,
+        n_matched=n_matched,
+        n_gold=len(gold),
+        n_pred=len(predicted),
+        table_recall=recall,
+        note=note,
     )
 
 

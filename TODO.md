@@ -8,6 +8,8 @@
 
 [] Add postprocessing for ocr pipeline
 
+[] Create evaluation metrics for each function: Layout detection, Text extraction(WER, CER), Table detection(TEDS), Formular,...
+
 ## Optimize code & Enhance performance
 
 [] Add ocr engine that strongly support vietnamese

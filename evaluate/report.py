@@ -15,17 +15,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .metrics import CategoryScore, TextScore
+from .metrics import CategoryScore, DocumentTableScore, TextScore
 
 # Metrics deliberately outside this run, named in the report so their absence is
 # a decision on the record rather than something the reader has to notice.
-SKIPPED_METRICS = (
-    (
-        "Table — TEDS, TEDS-Struct",
-        "out of scope for this run; metrics/table.py is unwired",
-    ),
-    ("Picture — detection, caption", "out of scope for this run"),
-)
+SKIPPED_METRICS = (("Picture - detection, caption", "out of scope for this run"),)
+
+# A document with no table on either side. Rendered apart from ``n/a``, which claims
+# a score was attempted; there is nothing here to attempt.
+NO_TABLES_CELL = "-"
 
 
 @dataclass(frozen=True)
@@ -47,6 +45,7 @@ class DocumentResult:
     ground_truth_path: Path | None
     text: TextScore | None  # None when the document has no ground-truth text
     layout: LayoutResult | None  # None when either side has no boxes
+    tables: DocumentTableScore | None  # None when there is no ground-truth file at all
     notes: list[str]
 
 
@@ -58,22 +57,24 @@ class Report:
     output_dir: Path
     ground_truth_dir: Path
     iou_threshold: float
+    table_threshold: float
     documents: list[DocumentResult]
     corpus_text: TextScore  # every scored pair pooled, not an average of the rows
-    unpaired_ground_truth: list[str]
+    corpus_tables: DocumentTableScore | None  # every matched pair pooled, likewise
+    unpaired: list[tuple[str, str]]  # stem, and which side it is missing
 
 
-# Write result.md into the engine's results directory.
+# Write <output_dir name>_results.md into the engine's results directory.
 def write_report(report: Report, results_dir: Path) -> Path:
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    (results_dir / "result.md").write_text(render_markdown(report), encoding="utf-8")
-    return results_dir
+    report_path = results_dir / f"{report.output_dir.name}_results.md"
+    report_path.write_text(render_markdown(report), encoding="utf-8")
+    return report_path
 
 
 # Render the human-readable report, every section present whether scored or not.
 def render_markdown(report: Report) -> str:
-    scored_text = sum(1 for d in report.documents if d.text)
     scored_layout = sum(1 for d in report.documents if d.layout)
     lines = [
         f"# OCR evaluation — {report.engine}",
@@ -85,8 +86,6 @@ def render_markdown(report: Report) -> str:
         f"| ground_truth_dir | `{report.ground_truth_dir}` |",
         f"| IoU threshold | {report.iou_threshold} |",
         f"| documents found | {len(report.documents)} |",
-        f"| scored for text | {scored_text} |",
-        f"| scored for layout | {scored_layout} |",
         "",
     ]
 
@@ -168,8 +167,21 @@ def render_markdown(report: Report) -> str:
         )
     lines.append("")
 
-    # 4 — everything that did not get measured, split by cause
-    lines += ["## 4 · Not measured", "", "### 4.1 Per document", ""]
+    # 4 - tables, paired by content rather than by box
+    lines += [
+        f"## 4 · Tables  (pairing floor >= {report.table_threshold}; higher is better)",
+        "",
+        "| doc | TEDS | TEDS-Struct | matched | n_gold | n_pred | recall | note |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for document in report.documents:
+        lines.append(_table_row(document.doc_id, document.tables))
+    if report.corpus_tables:
+        lines.append(_table_row("**all documents pooled**", report.corpus_tables))
+    lines.append("")
+
+    # 5 - everything that did not get measured, split by cause
+    lines += ["## 5 · Not measured", "", "### 5.1 Per document", ""]
     document_notes = [(d.doc_id, note) for d in report.documents for note in d.notes]
     if not document_notes:
         lines.append("None — every document was scored on every metric in scope.")
@@ -177,7 +189,7 @@ def render_markdown(report: Report) -> str:
         lines += ["| doc | what is missing |", "| --- | --- |"]
         lines += [f"| {doc_id} | {note} |" for doc_id, note in document_notes]
 
-    lines += ["", "### 4.2 Per page", ""]
+    lines += ["", "### 5.2 Per page", ""]
     page_notes = [
         (d.doc_id, note)
         for d in report.documents
@@ -190,19 +202,16 @@ def render_markdown(report: Report) -> str:
         lines += ["| doc | page and reason |", "| --- | --- |"]
         lines += [f"| {doc_id} | {note} |" for doc_id, note in page_notes]
 
-    lines += ["", "### 4.3 Metrics out of scope for this run", ""]
+    lines += ["", "### 5.3 Metrics out of scope for this run", ""]
     lines += ["| metric | why |", "| --- | --- |"]
     lines += [f"| {metric} | {reason} |" for metric, reason in SKIPPED_METRICS]
 
-    lines += ["", "### 4.4 Ground truth with no prediction", ""]
-    if not report.unpaired_ground_truth:
-        lines.append("None — every ground-truth file was paired.")
+    lines += ["", "### 5.4 Documents that did not pair", ""]
+    if not report.unpaired:
+        lines.append("None - every document paired on both sides.")
     else:
-        lines += ["| stem | |", "| --- | --- |"]
-        lines += [
-            f"| {stem} | no document of this name under `{report.output_dir}` |"
-            for stem in report.unpaired_ground_truth
-        ]
+        lines += ["| stem | what is missing |", "| --- | --- |"]
+        lines += [f"| {stem} | {reason} |" for stem, reason in report.unpaired]
 
     return "\n".join(lines) + "\n"
 
@@ -210,3 +219,21 @@ def render_markdown(report: Report) -> str:
 # Format a metric for a table cell, keeping "not applicable" distinct from zero.
 def _num(value: float | None) -> str:
     return "n/a" if value is None else f"{value:.4f}"
+
+
+# Render one table-section row, keeping "no tables" distinct from "not scored".
+# style: keep - called for every document row and for the pooled row.
+def _table_row(label: str, score: DocumentTableScore | None) -> str:  # style: keep
+    # No ground-truth file at all: nothing was paired, and nothing could have been
+    if score is None:
+        return f"| {label} | n/a | n/a | 0 | 0 | 0 | n/a | not scoreable - no ground truth |"
+
+    # Neither side has a table, which is a finding rather than a failed measurement
+    if score.n_gold == 0 and score.n_pred == 0:
+        cell = NO_TABLES_CELL
+        return f"| {label} | {cell} | {cell} | 0 | 0 | 0 | {cell} | |"
+
+    return (
+        f"| {label} | {_num(score.teds)} | {_num(score.teds_struct)} | {score.n_matched} | "
+        f"{score.n_gold} | {score.n_pred} | {_num(score.table_recall)} | {score.note or ''} |"
+    )

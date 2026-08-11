@@ -5,6 +5,11 @@ because the latter skips tables entirely and the text inside a table is text the
 OCR was asked to read. Walking the body also keeps paragraphs and tables in the
 order they appear on the page, which is the order the prediction is in.
 
+Table cells come from ``table_extract.walk_docx_cells`` rather than ``row.cells``,
+which reports a vertically merged cell once per row it spans. A cell counted twice
+in gold is a cell the engine is charged for twice, so CER and WER read high for a
+reason that has nothing to do with the engine.
+
 Files are keyed by filename stem: that is what pairs a ground-truth file with the
 prediction of the same name, and the only pairing rule this module knows.
 """
@@ -16,6 +21,8 @@ from pathlib import Path
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
+
+from .table_extract import walk_docx_cells
 
 # Formats a ground-truth document may be written in. Anything else is ignored
 # rather than read as text, so a stray .pdf never becomes a comparison target.
@@ -88,6 +95,7 @@ def load(path: Path) -> str:
         if child.tag.endswith(DOCX_PARAGRAPH_TAG):
             chunks.append(Paragraph(child, document).text)
         elif child.tag.endswith(DOCX_TABLE_TAG):
-            chunks.extend(cell.text for row in Table(child, document).rows for cell in row.cells)
+            table = Table(child, document)
+            chunks.extend(cell.text for cell in walk_docx_cells(table))
 
     return "\n".join(chunks)

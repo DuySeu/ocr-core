@@ -15,6 +15,7 @@ from pathlib import Path
 import yaml
 
 DEFAULT_IOU_THRESHOLD = 0.5
+DEFAULT_TABLE_THRESHOLD = 0.5
 EVALUATE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = EVALUATE_DIR.parent
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -32,6 +33,7 @@ class EvalConfig:
     output_dir: Path
     ground_truth_dir: Path
     iou_threshold: float = DEFAULT_IOU_THRESHOLD
+    table_threshold: float = DEFAULT_TABLE_THRESHOLD
 
     @property
     def results_dir(self) -> Path:
@@ -46,6 +48,7 @@ class ConfigError(Exception):
 def load_config(
     path: Path = DEFAULT_CONFIG_PATH,
     iou_threshold: float = DEFAULT_IOU_THRESHOLD,
+    table_threshold: float = DEFAULT_TABLE_THRESHOLD,
 ) -> EvalConfig:
     if not path.exists():
         raise ConfigError(f"config not found: {path}")
@@ -72,4 +75,5 @@ def load_config(
         output_dir=output_dir,
         ground_truth_dir=ground_truth_dir,
         iou_threshold=iou_threshold,
+        table_threshold=table_threshold,
     )

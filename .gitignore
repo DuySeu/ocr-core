@@ -11,4 +11,5 @@ invoice
 .claude/
 dataset/*
 ground_truth/*
+evaluate/results
 !.gitkeep

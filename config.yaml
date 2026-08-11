@@ -3,7 +3,7 @@ langs: [vie, eng]
 
 preprocess_steps: [grayscale, deskew, binarize]
 
-input_dir: ./dataset
+input_dir: ./dataset/lpbank
 output_dir: ./output/low_quality_handwritten
 
 ground_truth_dir: ./ground_truth/handwritten # directory containing ground truth text files for evaluation

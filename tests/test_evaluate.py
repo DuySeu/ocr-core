@@ -1,7 +1,15 @@
 import pytest
 import yaml
+from docx import Document
 
-from evaluate import EvalConfig, evaluate_engine
+from evaluate import (
+    NO_GOLD_REASON,
+    NO_PREDICTION_REASON,
+    EvalConfig,
+    PairingError,
+    evaluate_engine,
+    write_report,
+)
 from evaluate.config import ConfigError, load_config
 from evaluate.engines import UnknownEngineError
 from evaluate.report import render_markdown
@@ -57,7 +65,25 @@ def test_ground_truth_with_no_prediction_is_listed_not_ignored(workspace):
 
     report = evaluate_engine(config)
 
-    assert report.unpaired_ground_truth == ["lonely"]
+    assert ("lonely", NO_PREDICTION_REASON) in report.unpaired
+
+
+def test_a_prediction_with_no_ground_truth_is_named_in_the_unpaired_list_too(workspace):
+    config = workspace(predictions={"doc.md": "Điều 1"}, ground_truths={"lonely.md": "x"})
+
+    report = evaluate_engine(config)
+
+    assert ("doc", NO_GOLD_REASON) in report.unpaired
+
+
+def test_two_predictions_sharing_a_stem_is_an_error_not_a_silent_pick(workspace, tmp_path):
+    config = workspace(predictions={"doc.md": "Điều 1"}, ground_truths={"doc.md": "Điều 1"})
+    nested = tmp_path / "output" / "nested"
+    nested.mkdir()
+    (nested / "doc.md").write_text("Điều 1", encoding="utf-8")
+
+    with pytest.raises(PairingError, match="share the stem"):
+        evaluate_engine(config)
 
 
 def test_the_corpus_row_pools_characters_rather_than_averaging_document_rates(workspace):
@@ -158,6 +184,16 @@ def test_an_engine_with_no_adapter_fails_by_name_rather_than_guessing(workspace)
         evaluate_engine(config)
 
 
+def test_the_report_file_is_named_after_the_output_dir(workspace, tmp_path):
+    config = workspace(predictions={"doc.md": "Điều 1"}, ground_truths={"doc.md": "Điều 1"})
+    results_dir = tmp_path / "results"
+
+    report_path = write_report(evaluate_engine(config), results_dir)
+
+    assert report_path.name == "output_results.md"
+    assert report_path.parent == results_dir
+
+
 def test_config_reads_only_the_three_keys_scoring_needs(tmp_path):
     (tmp_path / "output").mkdir()
     (tmp_path / "gt").mkdir()
@@ -194,6 +230,113 @@ def test_every_section_renders_even_when_nothing_could_be_scored(workspace):
 
     markdown = render_markdown(evaluate_engine(config))
 
-    for heading in ("## 1 · Text", "## 2 · Layout", "## 3 · Text", "## 4 · Not measured"):
+    for heading in (
+        "## 1 · Text",
+        "## 2 · Layout",
+        "## 3 · Text",
+        "## 4 · Tables",
+        "## 5 · Not measured",
+    ):
         assert heading in markdown
-    assert "Table — TEDS" in markdown
+
+
+# ---------- tables ----------
+
+TABLE_HTML = "<table><tr><td>An</td><td>10</td></tr></table>"
+PIPE_TABLE = "| Tên | Số |\n| --- | --- |\n| An | 10 |"
+
+
+def test_tables_are_paired_and_scored_at_document_level(workspace):
+    config = workspace(
+        predictions={"doc.md": f"Mở đầu\n\n{TABLE_HTML}"},
+        ground_truths={"doc.md": f"Mở đầu\n\n{TABLE_HTML}"},
+    )
+
+    tables = evaluate_engine(config).documents[0].tables
+
+    assert tables.n_matched == 1
+    assert tables.teds == pytest.approx(1.0)
+    assert tables.table_recall == pytest.approx(1.0)
+
+
+def test_a_pipe_gold_table_is_paired_with_an_html_predicted_table(workspace):
+    config = workspace(
+        predictions={"doc.md": "<table><tr><th>Tên</th><th>Số</th></tr>"
+                               "<tr><td>An</td><td>10</td></tr></table>"},
+        ground_truths={"doc.md": PIPE_TABLE},
+    )
+
+    tables = evaluate_engine(config).documents[0].tables
+
+    assert tables.n_matched == 1
+    assert tables.teds == pytest.approx(1.0)
+
+
+def test_a_document_with_no_ground_truth_file_is_not_scoreable_rather_than_empty(workspace):
+    config = workspace(predictions={"doc.md": TABLE_HTML}, ground_truths={})
+
+    document = evaluate_engine(config).documents[0]
+
+    assert document.tables is None
+    assert "not scoreable - no ground truth" in render_markdown(evaluate_engine(config))
+
+
+def test_gold_with_no_tables_reports_the_predicted_count_not_a_recall(workspace):
+    config = workspace(
+        predictions={"doc.md": TABLE_HTML}, ground_truths={"doc.md": "Không có bảng"}
+    )
+
+    tables = evaluate_engine(config).documents[0].tables
+
+    assert tables.n_gold == 0
+    assert tables.n_pred == 1
+    assert tables.table_recall is None
+
+
+def test_gold_tables_are_read_from_a_docx_by_suffix(workspace, tmp_path):
+    document = Document()
+    table = document.add_table(rows=1, cols=2)
+    table.rows[0].cells[0].text = "An"
+    table.rows[0].cells[1].text = "10"
+    config = workspace(predictions={"doc.md": TABLE_HTML})
+    document.save(str(tmp_path / "ground_truth" / "doc.docx"))
+
+    tables = evaluate_engine(config).documents[0].tables
+
+    assert tables.n_gold == 1
+    assert tables.n_matched == 1
+
+
+def test_corpus_tables_are_weighted_by_matched_count_not_averaged_per_document(workspace):
+    wrong_cell = "<table><tr><td>An</td><td>11</td></tr></table>"
+    two_tables = f"{TABLE_HTML}\n\n{TABLE_HTML}"
+    config = workspace(
+        predictions={"one.md": wrong_cell, "two.md": two_tables},
+        ground_truths={"one.md": TABLE_HTML, "two.md": two_tables},
+    )
+
+    report = evaluate_engine(config)
+
+    # One imperfect table against two perfect ones, pooled over three matches
+    per_document = [d.tables.teds for d in report.documents]
+    assert report.corpus_tables.n_matched == 3
+    assert report.corpus_tables.teds != pytest.approx(sum(per_document) / 2)
+    assert report.corpus_tables.teds == pytest.approx(
+        sum(d.tables.teds * d.tables.n_matched for d in report.documents) / 3
+    )
+
+
+def test_the_pairing_floor_is_printed_in_the_table_section_heading(workspace):
+    config = workspace(predictions={"doc.md": "x"}, ground_truths={"doc.md": "x"})
+
+    markdown = render_markdown(evaluate_engine(config))
+
+    assert "## 4 · Tables  (pairing floor >= 0.5" in markdown
+
+
+def test_a_document_with_no_table_on_either_side_renders_a_hyphen_not_n_a(workspace):
+    config = workspace(predictions={"doc.md": "Không bảng"}, ground_truths={"doc.md": "Không bảng"})
+
+    markdown = render_markdown(evaluate_engine(config))
+
+    assert "| doc | - | - | 0 | 0 | 0 | - | |" in markdown

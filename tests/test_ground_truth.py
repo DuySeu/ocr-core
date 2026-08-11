@@ -24,6 +24,20 @@ def test_docx_table_cells_are_read_in_document_order_with_the_paragraphs(tmp_pat
     assert load(path).split("\n") == ["Điều 1. Phạm vi", "An", "10", "Điều 2. Giải thích"]
 
 
+def test_reads_a_vertically_merged_docx_cell_once(tmp_path):
+    document = Document()
+    table = document.add_table(rows=2, cols=2)
+    for row in range(2):
+        for column in range(2):
+            table.cell(row, column).text = f"r{row}c{column}"
+    table.cell(0, 0).merge(table.cell(1, 0))
+    path = tmp_path / "gt.docx"
+    document.save(str(path))
+
+    # row.cells reports the merged cell once per row it spans, inflating CER and WER
+    assert load(path).count("r0c0") == 1
+
+
 def test_an_unreadable_format_is_named_rather_than_read_as_bytes(tmp_path):
     path = tmp_path / "gt.pdf"
     path.write_bytes(b"%PDF-1.4")

@@ -12,7 +12,7 @@
 
 [] Nghiên cứu thuật toán NER
 
-[] Cách find tools
+[] Cách fine-tune
 
 ## Optimize code & Enhance performance
 

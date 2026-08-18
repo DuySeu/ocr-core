@@ -1,5 +1,13 @@
 """ocr-core: pluggable OCR pipeline engine."""
 from .config import Config, ConfigError, DEFAULTS, load
-from .pipeline import run, run_to_file
+from .pipeline import DocumentRun, run_document, run_page
 
-__all__ = ["Config", "ConfigError", "DEFAULTS", "load", "run", "run_to_file"]
+__all__ = [
+    "Config",
+    "ConfigError",
+    "DEFAULTS",
+    "DocumentRun",
+    "load",
+    "run_document",
+    "run_page",
+]

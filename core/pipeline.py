@@ -1,127 +1,148 @@
-"""Pipeline: load -> preprocess -> extract -> JSON/Markdown."""
+"""Pipeline: run_page and run_document.
+
+Six stages: load -> preprocess -> layout -> recognize -> assemble -> serialize.
+Serialize is not called here; `core/serialize/` runs on the Document this
+module hands back. `run_page` and `run_document` share `_process_page` (stages
+2-5). `run_document` also returns preprocess images so callers can dump pages
+that fail QA into a review folder.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
 
-from . import extract, preprocessing
-from . import postprocess as postprocess_mod
-from .config import Config, DEFAULTS
-from .engines import get_engine
+from . import layout, preprocess, recognize
+from .config import Config, pipeline_version
+from .document.assemble import assemble_page
+from .document.link import link_table_continuations
+from .document.model import Document, Element, PageError
+from .document.reading_order import assign_reading_order
+from .document.validate import validate_document, validate_page
+from .geometry import PageGeometry
+from .loader import PageImage, document_sha256, load, load_page
 
 logger = logging.getLogger(__name__)
 
 
-class UnsupportedFormatError(Exception):
-    """Raised when a file extension is not supported."""
+@dataclass(frozen=True)
+class PageResult:
+    geometry: PageGeometry | None  # None when the page failed at load
+    elements: list[Element]
+    image: Image.Image | None  # the image AFTER preprocess - None on error
+    error: PageError | None
 
 
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp"}
-PDF_EXTS = {".pdf"}
-SUPPORTED_EXTS = IMAGE_EXTS | PDF_EXTS
+@dataclass(frozen=True)
+class DocumentRun:
+    """Whole-document OCR result plus preprocess images keyed by page number."""
+
+    document: Document
+    page_images: dict[int, Image.Image]
 
 
-@dataclass
-class PageImage:
-    page: int
-    image: Image.Image
+class _StageError(Exception):
+    """Tags which stage inside _process_page raised, for PageError.stage."""
+
+    def __init__(self, stage: str, cause: Exception):
+        super().__init__(str(cause))
+        self.stage = stage
+        self.cause = cause
 
 
-def load(path: str) -> list[PageImage]:
-    """Input loading: image/PDF -> page images."""
-    ext = Path(path).suffix.lower()
-    logger.debug("load %s (ext=%s)", path, ext)
-    if ext in IMAGE_EXTS:
-        return [PageImage(1, Image.open(path))]
-    if ext in PDF_EXTS:
-        from pdf2image import convert_from_path  # lazy: needs Poppler
+def run_page(path: str | Path, page: int, cfg: Config) -> PageResult:
+    """Run stages 1-5 on one page; never raises (errors become PageResult.error)."""
+    try:
+        page_image = load_page(path, page, cfg.dpi)
+    except Exception as e:
+        return PageResult(
+            None, [], None, PageError(page, "load", f"{type(e).__name__}: {e}")
+        )
 
-        logger.debug("converting PDF pages: %s", path)
-        return [PageImage(i, img) for i, img in enumerate(convert_from_path(path), 1)]
-    raise UnsupportedFormatError(f"unsupported format {ext!r} for {path}")
+    try:
+        elements, processed = _process_page(page_image, cfg)
+    except _StageError as e:
+        message = f"{type(e.cause).__name__}: {e.cause}"
+        return PageResult(None, [], None, PageError(page, e.stage, message))
+
+    return PageResult(processed.geometry, elements, processed.image, None)
 
 
-def run(input_path: str, config: Config = DEFAULTS) -> dict:
-    """OCR one file. Loader errors propagate; per-page errors are recorded."""
-    logger.info(
-        "start: %s (engine=%s, lang=%s, mode=%s)",
-        input_path,
-        config.engine,
-        config.lang,
-        config.mode,
-    )
-    pages = load(input_path)  # may raise UnsupportedFormatError
-    logger.info("loaded %d page(s) from %s", len(pages), input_path)
-    engine = get_engine(config.engine)
+def run_document(path: str | Path, cfg: Config) -> DocumentRun:
+    """Run the full document pipeline and return Document plus page images.
 
-    results = []
-    for page in pages:
+    Args:
+        path: PDF or image path.
+        cfg: Pipeline config.
+
+    Returns:
+        DocumentRun with the assembled Document and a map of page number to
+        preprocess image (only for pages that completed stages 2-5).
+    """
+    pages = load(path, cfg.dpi)
+
+    elements_by_page: dict[int, list[Element]] = {}
+    geometries: list[PageGeometry] = []
+    page_images: dict[int, Image.Image] = {}
+    errors: list[PageError] = []
+
+    for page_image in pages:
+        page_number = page_image.geometry.page
         try:
-            img = preprocessing.apply(page.image, config.preprocess_steps)
-            blocks = extract.extract(engine, img, config)
-            if config.postprocess:
-                blocks = postprocess_mod.correct_page(blocks, config)
-            logger.info("page %d: %d block(s)", page.page, len(blocks))
-            results.append({"page": page.page, "blocks": blocks, "error": None})
-        except Exception as e:  # best-effort per page
-            logger.warning("page %d failed: %s: %s", page.page, type(e).__name__, e)
-            results.append(
-                {"page": page.page, "blocks": [], "error": f"{type(e).__name__}: {e}"}
-            )
-
-    return {
-        "source": str(input_path),
-        "engine": config.engine,
-        "lang": config.lang,
-        "mode": config.mode,
-        "page_count": len(pages),
-        "pages": results,
-    }
-
-
-def run_to_file(input_path: str, config: Config = DEFAULTS) -> str:
-    """Run and write <stem>.<ext> into config.output_dir; return its path."""
-    doc = run(input_path, config)
-    if config.mode == "markdown":
-        body, ext = to_markdown(doc), "md"
-    else:
-        body, ext = json.dumps(doc, indent=2, ensure_ascii=False), "json"
-    out_dir = Path(config.output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{Path(input_path).stem}.{ext}"
-    out_path.write_text(body)
-    logger.info("wrote %s", out_path)
-    return str(out_path)
-
-
-def to_markdown(doc: dict) -> str:
-    """Serialize a run() doc into a Markdown document."""
-    parts = []
-    for pg in doc["pages"]:
-        if pg["error"]:
-            parts.append(f"<!-- page {pg['page']} error: {pg['error']} -->")
+            elements, processed = _process_page(page_image, cfg)
+        except _StageError as e:
+            message = f"{type(e.cause).__name__}: {e.cause}"
+            errors.append(PageError(page_number, e.stage, message))
             continue
-        for b in pg["blocks"]:
-            if b["type"] == "paragraph":
-                parts.append(b["text"])
-                continue
-            rows = b["rows"]
-            widths = [len(r) for r in rows if len(r) != 1]
-            n = max(widths) if widths else 1
-            out = []
-            for i, r in enumerate(rows):
-                if len(r) == 1 and n > 1:  # hàng tiêu đề trải hết bảng
-                    head = r[0].replace("|", "\\|")
-                    cells = [f"**{head}**"] + [""] * (n - 1)
-                else:
-                    cells = [c.replace("|", "\\|") for c in r] + [""] * (n - len(r))
-                out.append("| " + " | ".join(cells) + " |")
-                if i == 0 and b.get("header"):
-                    out.append("| " + " | ".join(["---"] * n) + " |")
-            parts.append("\n".join(out))
-    return "\n\n".join(parts) + "\n"
+        elements_by_page[page_number] = elements
+        geometries.append(processed.geometry)
+        page_images[page_number] = processed.image
+
+    link_table_continuations(elements_by_page)
+    all_elements = [
+        element
+        for page in sorted(elements_by_page)
+        for element in elements_by_page[page]
+    ]
+
+    doc = Document(
+        source=str(path),
+        doc_sha256=document_sha256(path),
+        pipeline_version=pipeline_version(cfg),
+        pages=geometries,
+        elements=all_elements,
+        errors=errors,
+    )
+    assign_reading_order(doc)
+    validate_document(doc)
+    return DocumentRun(document=doc, page_images=page_images)
+
+
+def _process_page(
+    page_image: PageImage, cfg: Config
+) -> tuple[list[Element], PageImage]:
+    """Run stages 2-5 on one already-loaded page."""
+    try:
+        processed = preprocess.apply(page_image, cfg.preprocess_steps)
+    except Exception as e:
+        raise _StageError("preprocess", e) from e
+
+    try:
+        boxes = layout.detect(processed.image, cfg)
+    except Exception as e:
+        raise _StageError("layout", e) from e
+
+    recognized = [
+        recognize.recognize(processed.image, box, cfg) for box in boxes
+    ]
+
+    try:
+        elements = assemble_page(recognized, processed.geometry)
+    except Exception as e:
+        raise _StageError("assemble", e) from e
+
+    validate_page(elements)
+    return elements, processed

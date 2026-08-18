@@ -3,23 +3,19 @@ pytesseract
 paddleocr
 easyocr
 
-# Input loading: PDF -> images, image handling
-pdf2image
+# Input loading: PDF -> page images (pypdfium2, no Poppler binary needed)
+pypdfium2
 Pillow
 
-# Preprocessing (deskew, binarize)
+# Preprocessing (orientation, deskew, denoise), table grid detection (OpenCV)
 numpy
 opencv-python
 
 # Config file parsing (YAML)
 PyYAML
 
-# Post-processing: LLM correction via OpenRouter
-openrouter
-python-dotenv
-
 # Evaluation harness (evaluate/): WER/CER, TEDS, IoU
 rapidfuzz
 apted
 python-docx
-lxml  # table markup parsing; arrives via python-docx but is imported directly
+lxml  # table markup parsing; also used by core/document/validate.py

@@ -10,6 +10,10 @@
 
 [] Create evaluation metrics for each function: Layout detection, Text extraction(WER, CER), Table detection(TEDS), Formular,...
 
+[] Nghiên cứu thuật toán NER
+
+[] Cách find tools
+
 ## Optimize code & Enhance performance
 
 [] Add ocr engine that strongly support vietnamese
@@ -19,3 +23,7 @@
 [] Build pipeline ocr for RAG workflow -> .md
 
 [] Build pipeline ocr for extract information -> .json
+
+[] Add fine-tune pipeline for exist ocr engine
+
+[] Add evaluation metric for text/layout/table/NER

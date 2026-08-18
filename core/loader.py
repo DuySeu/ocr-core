@@ -87,6 +87,58 @@ def load(path: str | Path, dpi: int = 300) -> list[PageImage]:
     return pages
 
 
+# Render exactly one page, so a worker that only has (path, page) never re-renders
+# the whole document to get it (§4.1 - the cost load_page exists to avoid).
+def load_page(path: str | Path, page: int, dpi: int = 300) -> PageImage:
+    source = Path(path)
+    ext = source.suffix.lower()
+
+    if ext in IMAGE_EXTS:
+        if page != 1:
+            raise UnsupportedFormatError(f"{source} is a single-page image; got page={page}")
+        image, rotation, displayed_pt = Image.open(source).convert("RGB"), 0, None
+    elif ext in PDF_EXTS:
+        pdf = pdfium.PdfDocument(source)
+        pdf_page = pdf[page - 1]
+        image = pdf_page.render(scale=dpi / POINTS_PER_INCH).to_pil().convert("RGB")
+        rotation, displayed_pt = pdf_page.get_rotation(), pdf_page.get_size()
+    else:
+        raise UnsupportedFormatError(f"unsupported format {ext!r} for {source}")
+
+    if displayed_pt is None:
+        width_pt = height_pt = None
+    elif rotation in QUARTER_TURNS:
+        height_pt, width_pt = displayed_pt
+    else:
+        width_pt, height_pt = displayed_pt
+
+    geometry = PageGeometry(
+        page=page,
+        width_px=image.width,
+        height_px=image.height,
+        dpi=dpi,
+        rotation_applied=rotation,
+        deskew_angle=0.0,
+        deskew_matrix=IDENTITY_MATRIX,
+        pdf_width_pt=width_pt,
+        pdf_height_pt=height_pt,
+    ).validate()
+    return PageImage(image, geometry)
+
+
+# Count pages without rendering any of them (§4.1 - orchestrate needs this before
+# it can queue per-page work, and rendering at 300 DPI just to count is the
+# exact cost load_page/page_count exist to avoid).
+def page_count(path: str | Path) -> int:
+    source = Path(path)
+    ext = source.suffix.lower()
+    if ext in IMAGE_EXTS:
+        return 1
+    if ext in PDF_EXTS:
+        return len(pdfium.PdfDocument(source))
+    raise UnsupportedFormatError(f"unsupported format {ext!r} for {source}")
+
+
 # Hash a source file so its outputs can be addressed by content.
 def document_sha256(path: str | Path) -> str:
     digest = hashlib.sha256()

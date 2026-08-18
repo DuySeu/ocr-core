@@ -5,6 +5,7 @@ from .model import (
     FLAGS,
     RENDER_MODES,
     Document,
+    DocumentError,
     Element,
     FigureContent,
     FormulaContent,
@@ -12,6 +13,9 @@ from .model import (
     PageError,
     TableContent,
     TextContent,
+    TextLine,
+    element_id,
+    render_mode,
 )
 
 __all__ = [
@@ -19,6 +23,7 @@ __all__ = [
     "FLAGS",
     "RENDER_MODES",
     "Document",
+    "DocumentError",
     "Element",
     "FigureContent",
     "FormulaContent",
@@ -26,4 +31,7 @@ __all__ = [
     "PageError",
     "TableContent",
     "TextContent",
+    "TextLine",
+    "element_id",
+    "render_mode",
 ]

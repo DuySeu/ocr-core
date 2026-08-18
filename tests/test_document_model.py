@@ -12,6 +12,7 @@ from core.document.model import (
     FormulaContent,
     TableContent,
     TextContent,
+    TextLine,
     element_id,
     render_mode,
 )
@@ -133,3 +134,30 @@ def test_table_content_keeps_cell_boxes_alongside_the_html():
 
     assert table.cell_boxes == [(10, 20, 30, 40)]
     assert (table.n_rows, table.n_cols) == (1, 1)
+
+
+def test_builds_text_content_with_one_positional_argument():
+    # Locks the default_factory on `lines` (§4.4) - a required field would turn
+    # this and 13 other call sites in tests/ red.
+    content = TextContent("xin chào")
+
+    assert content.text == "xin chào"
+    assert content.lines == []
+
+
+def test_two_text_contents_do_not_share_one_lines_list():
+    first = TextContent("a")
+    second = TextContent("b")
+
+    first.lines.append(
+        TextLine(text="x", text_ocr="x", polygon=[(0, 0)], bbox=(0, 0, 1, 1), confidence=None)
+    )
+
+    assert second.lines == []
+
+
+def test_a_text_line_keeps_the_reviewer_edit_separate_from_the_ocr_original():
+    line = TextLine(text="hòa", text_ocr="hoà", polygon=[(0, 0)], bbox=(0, 0, 1, 1), confidence=0.5)
+
+    assert line.text == "hòa"
+    assert line.text_ocr == "hoà"

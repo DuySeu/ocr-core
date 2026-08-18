@@ -3,13 +3,19 @@ __pycache__/
 .DS_Store
 input/*
 output/*
+review/*
 .pytest_cache
 .env
 legal
 invoice
 
-.claude/
+.agents/
 dataset/*
 ground_truth/*
 evaluate/results
+artifacts/*
 !.gitkeep
+finetune/tessdata/*.traineddata
+finetune/data/
+finetune/work/
+skills-lock.json

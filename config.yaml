@@ -1,9 +1,16 @@
-engine: chandra
-langs: [vie, eng]
+engine: tesseract
+langs: [vie]
+dpi: 300
 
-preprocess_steps: [grayscale, deskew, binarize]
+preprocess_steps: [orientation, deskew, denoise]
+
+layout: tesseract
+table: cv
+qa_threshold: 0.75
 
 input_dir: ./dataset/lpbank
-output_dir: ./output/low_quality_handwritten
+output_dir: ./output
+review_dir: ./review
+artifacts_dir: ./artifacts
 
-ground_truth_dir: ./ground_truth/handwritten # directory containing ground truth text files for evaluation
+ground_truth_dir: ./ground_truth/lpbank # directory containing ground truth text files for evaluation

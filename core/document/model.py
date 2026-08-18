@@ -53,8 +53,18 @@ class LogProb:
 
 
 @dataclass(frozen=True)
+class TextLine:
+    text: str  # current text, edited if a reviewer fixed it
+    text_ocr: str  # original OCR text, never overwritten
+    polygon: list[tuple[float, float]]  # canonical frame, quadrilateral - source of truth for position
+    bbox: tuple[int, int, int, int]  # canonical frame, convex-hull rectangle of polygon
+    confidence: float | None  # 0..1, None when the engine reports none
+
+
+@dataclass(frozen=True)
 class TextContent:
-    text: str
+    text: str  # joins TextLine.text with "\n"; derived, rebuilt by serde.py on load
+    lines: list[TextLine] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -103,7 +113,7 @@ class PageError:
     """A page that failed, kept so it cannot vanish without a trace."""
 
     page: int
-    stage: str  # "load" | "preprocess" | "layout"
+    stage: str  # "load" | "preprocess" | "layout" | "assemble"
     message: str  # "<ErrorType>: <message>"
 
 

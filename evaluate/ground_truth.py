@@ -1,8 +1,8 @@
 """The ground-truth dataset every tier scores against, and the converter that builds it.
 
-One document is two files side by side in ``ground_truth/<dataset>/``:
+One document is two files side by side in ``data/ground_truth/<dataset>/``:
 
-- ``<doc_id>.json``: the schema from docs/README.md (``doc_id``, ``file``,
+- ``<doc_id>.json``: the schema from docs/specs/benchmark-ocr.md (``doc_id``, ``file``,
   ``metadata``, ``normalization_version``, ``pages``, ``fields``), with ``full_text``
   replaced by ``text_file``, the name of the markdown beside it.
 - ``<doc_id>.md``: the transcription, ``<table>`` markup and ``<!-- image -->``

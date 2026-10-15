@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from core.tables import detect_tables
+from core.layout.table_grid import detect_tables
 
 
 def _grid_with_merge():

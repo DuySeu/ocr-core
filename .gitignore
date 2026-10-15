@@ -1,21 +1,13 @@
 .venv
 __pycache__/
 .DS_Store
-input/*
-output/*
-review/*
 .pytest_cache
 .env
-legal
-invoice
 
 .agents/
-dataset/*
-ground_truth/*
-evaluate/results
-artifacts/*
-!.gitkeep
-finetune/tessdata/*.traineddata
-finetune/data/
-finetune/work/
 skills-lock.json
+
+# Everything under data/ is local; only the .gitkeep that recreates each folder is tracked
+data/**
+!data/**/
+!.gitkeep

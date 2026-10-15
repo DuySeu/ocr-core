@@ -1,7 +1,7 @@
 """Tier 3, Extraction & Structure. Not implemented yet.
 
 Input will be predicted ``<doc_id>.json`` records in the ground-truth schema, scored
-against ``fields`` of the dataset, after normalization (docs/README.md, section 4):
+against ``fields`` of the dataset, after normalization (docs/specs/benchmark-ocr.md, section 4):
 
 - Field-level precision / recall / F1, exact match.
 - Document-level accuracy: every required field matches.

@@ -1,6 +1,6 @@
 # Evaluation harness
 
-Scores predictions against one ground-truth dataset, one tier at a time: Detection & Layout, Recognition, Extraction & Structure (see [`docs/README.md`](../docs/README.md)). Only Recognition is implemented; `layout/` and `extraction/` hold the planned input and metrics and fail by name when run.
+Scores predictions against one ground-truth dataset, one tier at a time: Detection & Layout, Recognition, Extraction & Structure (see [`docs/README.md`](../docs/specs/benchmark-ocr.md)). Only Recognition is implemented; `layout/` and `extraction/` hold the planned input and metrics and fail by name when run.
 
 Nothing here imports `core`. The evaluator reads files an engine already wrote, so it scores any provider without knowing how the files were produced. The engine name is only a label in the report path.
 
@@ -8,30 +8,30 @@ Nothing here imports `core`. The evaluator reads files an engine already wrote, 
 
 ```bash
 python -m evaluate recognition                              # pred + GT dirs from ./config.yaml
-python -m evaluate recognition --pred output/lpbank --gt ground_truth/lpbank --label chandra
+python -m evaluate recognition --pred data/output/chandra/lpbank --gt data/ground_truth/lpbank --label chandra
 python -m evaluate recognition --doc tonghopdon             # one document, by doc_id
 python -m evaluate recognition --table-threshold 0.7        # stricter table pairing (default 0.5)
 python -m evaluate recognition --config other.yaml          # a different config file
 ```
 
-The report is written to `evaluate/results/<tier>/<label>/<dataset>.md`, where `label` defaults to the name of the prediction directory and `dataset` is the name of the ground-truth directory. A directory not given on the command line falls back to `output_dir` / `ground_truth_dir` in `config.yaml`, resolved from the repo root. Everything else in that file belongs to the pipeline and is ignored.
+The report is written to `data/results/<tier>/<label>/<dataset>.md`, where `label` defaults to the name of the prediction directory and `dataset` is the name of the ground-truth directory. Predictions live in `data/output/<engine>/<dataset>/`, so the default label is the dataset name: pass `--label <engine>`. A directory not given on the command line falls back to `output_dir` / `ground_truth_dir` in `config.yaml`, resolved from the repo root. Everything else in that file belongs to the pipeline and is ignored.
 
 ## Ground-truth dataset
 
-Each document is two files side by side in `ground_truth/<dataset>/`:
+Each document is two files side by side in `data/ground_truth/<dataset>/`:
 
 ```text
 <doc_id>.json    doc_id, file, metadata, normalization_version, text_file, pages, fields
 <doc_id>.md      the transcription, <table> markup and <!-- image --> markers included
 ```
 
-The JSON follows the schema in `docs/README.md`, except that `full_text` is replaced by `text_file`, the name of the markdown beside it, so a reviewer edits markdown rather than a JSON string. `pages` and `fields` may stay empty until a document is annotated. A record with invalid JSON, without `doc_id` or `text_file`, whose markdown is missing, or sharing a `doc_id` with another record stops the run and is named.
+The JSON follows the schema in [`docs/specs/benchmark-ocr.md`](../docs/specs/benchmark-ocr.md), except that `full_text` is replaced by `text_file`, the name of the markdown beside it, so a reviewer edits markdown rather than a JSON string. `pages` and `fields` may stay empty until a document is annotated. A record with invalid JSON, without `doc_id` or `text_file`, whose markdown is missing, or sharing a `doc_id` with another record stops the run and is named.
 
 Loose `.md`, `.txt` or `.docx` ground truth converts once:
 
 ```bash
-python -m evaluate.ground_truth ground_truth/lpbank --source-dir dataset/lpbank
-python -m evaluate.ground_truth ground_truth/printed --out ground_truth/printed_ds --source-dir dataset/high_quality_printed
+python -m evaluate.ground_truth data/ground_truth/lpbank --source-dir data/raw/lpbank
+python -m evaluate.ground_truth data/ground_truth/printed --out data/ground_truth/printed_ds --source-dir data/raw/printed/high_quality
 ```
 
 A `.md` converts in place (only the `.json` is added). A `.docx` or `.txt` needs `--out` pointing to another directory, since a `.md` beside it would give `finetune/` two files with one stem. In a `.docx` the body is walked in order, paragraphs as paragraphs and tables as `<table>` markup with spans, each merged cell once. `--source-dir` fills `file` with the original document of the same stem. An existing `.json` is never overwritten.

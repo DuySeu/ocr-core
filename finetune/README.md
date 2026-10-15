@@ -2,7 +2,7 @@
 
 Builds `vie_lpbank.traineddata` from OCR artifacts and LPBank ground truth.
 Labels are produced automatically by aligning page OCR with
-`ground_truth/lpbank/*.md` — no per-line human transcription.
+`data/ground_truth/lpbank/*.md` — no per-line human transcription.
 
 ## Prerequisites
 
@@ -12,16 +12,16 @@ Labels are produced automatically by aligning page OCR with
    the system `tessdata_fast` build:
 
 ```bash
-mkdir -p finetune/tessdata
-curl -L -o finetune/tessdata/vie.traineddata \
+mkdir -p data/models/finetune/tessdata
+curl -L -o data/models/finetune/tessdata/vie.traineddata \
   https://github.com/tesseract-ocr/tessdata_best/raw/main/vie.traineddata
-cp /opt/homebrew/share/tessdata/osd.traineddata finetune/tessdata/
+cp /opt/homebrew/share/tessdata/osd.traineddata data/models/finetune/tessdata/
 ```
 
-3. Artifacts from a prior batch run under `artifacts/` (pages + deskewed
+3. Artifacts from a prior batch run under `data/artifacts/` (pages + deskewed
    webp images). **Note:** `orchestrate` was removed; producing those
    artifacts is a follow-up (see folder-review design §8).
-4. Matching ground truth under `ground_truth/lpbank/` (same stems as PDFs).
+4. Matching ground truth under `data/ground_truth/lpbank/` (same stems as PDFs).
 
 Every command runs the gates in `guards.py` first and stops before cutting
 any line if a gate fails.
@@ -51,14 +51,14 @@ python -m finetune pipeline --sha <doc_sha256> --version <pipeline_version>
 Layout:
 
 ```
-finetune/tessdata/vie.traineddata          # best, downloaded by you
-finetune/tessdata/osd.traineddata          # copy from system tessdata
-finetune/tessdata/vie_lpbank.traineddata   # written by train
-finetune/data/<sha12>/p0007_l003.png
-finetune/data/<sha12>/p0007_l003.gt.txt
-finetune/data/list.train
-finetune/data/rejected.log
-finetune/work/                             # checkpoints
+data/models/finetune/tessdata/vie.traineddata          # best, downloaded by you
+data/models/finetune/tessdata/osd.traineddata          # copy from system tessdata
+data/models/finetune/tessdata/vie_lpbank.traineddata   # written by train
+data/models/finetune/data/<sha12>/p0007_l003.png
+data/models/finetune/data/<sha12>/p0007_l003.gt.txt
+data/models/finetune/data/list.train
+data/models/finetune/data/rejected.log
+data/models/finetune/work/                             # checkpoints
 ```
 
 ## Close the loop
@@ -67,8 +67,8 @@ After `vie_lpbank.traineddata` exists:
 
 ```bash
 # config.yaml: langs: [vie_lpbank]
-TESSDATA_PREFIX=finetune/tessdata python main.py path/to/doc.pdf
-python -m evaluate.run
+TESSDATA_PREFIX=data/models/finetune/tessdata python main.py path/to/doc.pdf
+python -m evaluate recognition --label <engine>
 ```
 
 Changing `langs` changes OCR behaviour for the next `main.py` run.

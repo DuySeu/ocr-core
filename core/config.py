@@ -38,11 +38,11 @@ class Config:
     table: str = "cv"
     outputs: list[str] = field(default_factory=lambda: ["markdown"])
     qa_threshold: float = 0.75
-    input_dir: str = "./dataset/lpbank"
-    output_dir: str = "./output"
-    review_dir: str = "./review"
-    ground_truth_dir: str = "./ground_truth/lpbank"
-    artifacts_dir: str = "./artifacts"
+    input_dir: str = "./data/raw/lpbank"
+    output_dir: str = "./data/output/tesseract/lpbank"
+    review_dir: str = "./data/review"
+    ground_truth_dir: str = "./data/ground_truth/lpbank"
+    artifacts_dir: str = "./data/artifacts"
 
     def validate(self) -> "Config":
         if self.engine not in VALID_ENGINES:

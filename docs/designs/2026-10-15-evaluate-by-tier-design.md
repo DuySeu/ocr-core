@@ -4,7 +4,7 @@ Ngày: 2026-10-15. Trạng thái: tầng Recognition triển khai, tầng Detect
 
 ## Mục tiêu
 
-`evaluate/` không chấm theo engine nữa mà theo 3 tầng trong [docs/README.md](README.md). Một bộ ground truth chuẩn dùng chung cho cả 3 tầng. Mỗi tầng có metric riêng, đọc input riêng, ghi report riêng. Tầng Recognition triển khai đúng principles trong [evaluate/README.md](../evaluate/README.md): WER có marker ảnh, TEDS, không có chế độ raw, không có CER.
+`evaluate/` không chấm theo engine nữa mà theo 3 tầng trong [docs/specs/benchmark-ocr.md](../specs/benchmark-ocr.md). Một bộ ground truth chuẩn dùng chung cho cả 3 tầng. Mỗi tầng có metric riêng, đọc input riêng, ghi report riêng. Tầng Recognition triển khai đúng principles trong [evaluate/README.md](../../evaluate/README.md): WER có marker ảnh, TEDS, không có chế độ raw, không có CER.
 
 ## Bộ ground truth chuẩn
 
@@ -15,7 +15,7 @@ Mỗi tài liệu là hai file nằm cạnh nhau trong `ground_truth/<dataset>/`
 <doc_id>.md      text GT, kể cả <table> và <!-- image -->
 ```
 
-Schema theo docs/README.md, khác một chỗ: `full_text` được thay bằng `"text_file": "<doc_id>.md"`, để người sửa GT vẫn sửa markdown. `pages` (blocks có bbox, type, order, content) và `fields` được phép rỗng cho tới khi annotate; tầng cần dữ liệu đó mà thấy rỗng thì báo không chấm được, không tính 0.
+Schema theo docs/specs/benchmark-ocr.md, khác một chỗ: `full_text` được thay bằng `"text_file": "<doc_id>.md"`, để người sửa GT vẫn sửa markdown. `pages` (blocks có bbox, type, order, content) và `fields` được phép rỗng cho tới khi annotate; tầng cần dữ liệu đó mà thấy rỗng thì báo không chấm được, không tính 0.
 
 `ground_truth.load_dataset(dir)` đọc mọi `*.json` trong thư mục. JSON hỏng, thiếu `doc_id` hoặc `text_file`, file `.md` không tồn tại, hai JSON trùng `doc_id`: đều raise `GroundTruthError` và nêu tên file.
 
@@ -74,7 +74,7 @@ python -m evaluate recognition [--pred DIR] [--gt DIR] [--label NAME] [--doc ID]
 
 ## Tầng Detection & Layout và Extraction & Structure
 
-Chỉ có module với docstring nêu input (JSON prediction cùng schema với GT), metric dự kiến theo docs/README.md, và `run()` raise `NotImplementedError`. `python -m evaluate layout` in lỗi "chưa triển khai" và trả mã 1.
+Chỉ có module với docstring nêu input (JSON prediction cùng schema với GT), metric dự kiến theo docs/specs/benchmark-ocr.md, và `run()` raise `NotImplementedError`. `python -m evaluate layout` in lỗi "chưa triển khai" và trả mã 1.
 
 ## Test
 

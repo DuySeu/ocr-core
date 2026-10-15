@@ -7,7 +7,7 @@ from core.config import Config
 from core.engines.base import Word
 from core.layout.base import LayoutBox
 from core.recognize import recognize
-from core.tables import Cell
+from core.layout.table_grid import Cell
 
 
 class _FakeEngine:

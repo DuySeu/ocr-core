@@ -34,7 +34,7 @@ class CutReport:
     pages: int
 
 
-# Cut every TextLine from one document's artifacts into finetune/data/<sha>/.
+# Cut every TextLine from one document's artifacts into data/models/finetune/data/<sha>/.
 def cut_lines(
     artifacts_dir: Path,
     doc_sha256: str,

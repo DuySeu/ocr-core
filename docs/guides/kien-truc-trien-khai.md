@@ -1,6 +1,6 @@
 # Kiến trúc triển khai OCR - vai trò từng cấu phần
 
-Sơ đồ kiến trúc: [`kien-truc-trien-khai.drawio.svg`](kien-truc-trien-khai.drawio.svg)
+Sơ đồ kiến trúc: [`kien-truc-trien-khai.drawio.svg`](../diagrams/kien-truc-trien-khai.drawio.svg)
 
 Tài liệu theo luồng (repo hiện tại):
 

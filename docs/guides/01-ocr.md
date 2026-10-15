@@ -1,11 +1,11 @@
 # Luồng 1 · OCR
 
 Ngày: 2026-08-21. Trạng thái: **đã implement**.  
-Thiết kế pipeline: [2026-08-15-tesseract-pipeline-refactor-design.md](2026-08-15-tesseract-pipeline-refactor-design.md).  
+Thiết kế pipeline: [2026-08-15-tesseract-pipeline-refactor-design.md](../designs/2026-08-15-tesseract-pipeline-refactor-design.md).  
 Review folder (thay UI/SQLite): [2026-08-17-folder-review-design.md](2026-08-17-folder-review-design.md).  
 Sơ đồ tổng: [kien-truc-trien-khai.md](kien-truc-trien-khai.md).
 
-Biến PDF/ảnh thành văn bản có cấu trúc (`.md`), QA theo ngưỡng, trang dưới ngưỡng dump ra `review/` để sửa tay. Package: `core/` (+ `main.py`).
+Biến PDF/ảnh thành văn bản có cấu trúc (`.md`), QA theo ngưỡng, trang dưới ngưỡng dump ra `data/review/` để sửa tay. Package: `core/` (+ `main.py`).
 
 Luồng liên quan: [02 trích xuất](02-trich-xuat.md) · [03 fine-tune](03-finetune.md) · [04 evaluation](04-evaluation.md).
 
@@ -16,8 +16,8 @@ Luồng liên quan: [02 trích xuất](02-trich-xuat.md) · [03 fine-tune](03-fi
 | --- | ---------------------------------------------------------------------- | ------------------------------ |
 | 1   | Engine mặc định **Tesseract 5**; layout = block Tesseract + `table_cv` | Chandra one-pass; PP-DocLayout |
 | 2   | QA theo trang; **không** `.html`, **không** searchable PDF             | Làm cả bốn                     |
-| 3   | Review = folder `review/` + `apply-review` (không FastAPI / SQLite)    | Redis/Celery; review UI        |
-| 4   | Giữ `core/engines/` và `core/tables.py`; xoá extract/postprocess cũ    | Hai đường chạy song song       |
+| 3   | Review = folder `data/review/` + `apply-review` (không FastAPI / SQLite)    | Redis/Celery; review UI        |
+| 4   | Giữ `core/engines/` và `core/layout/table_grid.py`; xoá extract/postprocess cũ    | Hai đường chạy song song       |
 
 
 Tiêu chí thành công: **luồng chạy end-to-end và sinh đúng output**, không phải một mức CER cố định.
@@ -34,8 +34,8 @@ main.py   CLI: OCR một file + apply-review
 
 | Lệnh                                 | Việc                                                         |
 | ------------------------------------ | ------------------------------------------------------------ |
-| `python main.py <path> [--out]`      | OCR → `output/<stem>/` (+ dump trang yếu → `review/<stem>/`) |
-| `python main.py apply-review <stem>` | Đọc `review/<stem>/p*.md` → ghi đè lại `output/<stem>/`      |
+| `python main.py <path> [--out]`      | OCR → `<output_dir>/<stem>/` (+ dump trang yếu → `data/review/<stem>/`) |
+| `python main.py apply-review <stem>` | Đọc `data/review/<stem>/p*.md` → ghi đè lại `<output_dir>/<stem>/`      |
 
 
 Output luôn dưới `<out>/<stem nguồn>/`.
@@ -114,10 +114,10 @@ Element / Document / PageError / PageGeometry
 gate(elements, threshold) -> PageVerdict  # qa_threshold mặc định 0.75
 ```
 
-Sau OCR, `main.py` luôn ghi full document vào `output/<stem>/` (kể cả trang yếu), đồng thời:
+Sau OCR, `main.py` luôn ghi full document vào `<output_dir>/<stem>/` (kể cả trang yếu), đồng thời:
 
 ```
-review/<stem>/
+data/review/<stem>/
   p0003.webp    # ảnh sau preprocess
   p0003.md      # <!-- page: N lines: K --> + K dòng TextLine
 ```
@@ -128,7 +128,7 @@ Sửa tay `pNNNN.md` (giữ đúng số dòng), rồi:
 python main.py apply-review <stem>
 ```
 
-Apply cập nhật `TextLine.text` (giữ `text_ocr`), ghi lại `.md` / `.document.json`, xóa các trang đã apply trong `review/`.
+Apply cập nhật `TextLine.text` (giữ `text_ocr`), ghi lại `.md` / `.document.json`, xóa các trang đã apply trong `data/review/`.
 
 ## 6 · Config
 
@@ -145,4 +145,4 @@ input_dir, output_dir, review_dir, ground_truth_dir, artifacts_dir
 2. Chỉ bảng kẻ khung.
 3. Không `.html`, searchable PDF, công thức.
 4. `qa_threshold=0.75` chưa đo trên corpus thật.
-5. Fine-tune vẫn cần `artifacts/` — đường tạo artifact (orchestrate) đã gỡ; follow-up riêng.
+5. Fine-tune vẫn cần `data/artifacts/` — đường tạo artifact (orchestrate) đã gỡ; follow-up riêng.

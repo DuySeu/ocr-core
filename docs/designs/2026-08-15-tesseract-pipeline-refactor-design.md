@@ -2,7 +2,7 @@
 
 Ngày: 2026-08-15. Trạng thái: đã duyệt thiết kế, chờ viết plan.
 
-Phạm vi: zone 1 (OCR) và zone 3 (fine-tune) của `[kien-truc-trien-khai.md](../../kien-truc-trien-khai.md)`. Zone 2 (trích xuất thông tin) là spec riêng, viết sau khi phase 1 chốt được hình dạng `Document` thật.
+Phạm vi: zone 1 (OCR) và zone 3 (fine-tune) của `[kien-truc-trien-khai.md](../guides/kien-truc-trien-khai.md)`. Zone 2 (trích xuất thông tin) là spec riêng, viết sau khi phase 1 chốt được hình dạng `Document` thật.
 
 ## 1 · Mục tiêu và bối cảnh
 

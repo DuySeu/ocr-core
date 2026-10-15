@@ -1,17 +1,17 @@
-"""Table detector: wraps core.tables (OpenCV, bordered tables only)."""
+"""Table detector: wraps table_grid (OpenCV, bordered tables only)."""
 
 from __future__ import annotations
 
 import numpy as np
 from PIL import Image
 
+from . import table_grid
 from .base import LayoutBox, LayoutDetector
-from .. import tables as tables_mod
 
 
 class TableCVDetector(LayoutDetector):
     def detect(self, image: Image.Image, langs: list[str]) -> list[LayoutBox]:
-        tables = tables_mod.detect_tables(np.array(image))
+        tables = table_grid.detect_tables(np.array(image))
         return [
             LayoutBox(
                 category="table",

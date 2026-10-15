@@ -190,7 +190,7 @@ def test_orientation_detects_every_quarter_turn_on_a_real_page():
 
     from core.loader import load
 
-    upright = load("input/2356-TTr-VCB-KTKHDL-KTKHDL 1.pdf", dpi=200)[0]
+    upright = load("data/raw/unsorted/2356-TTr-VCB-KTKHDL-KTKHDL 1.pdf", dpi=200)[0]
 
     for turn in (0, 90, 180, 270):
         image = upright.image.rotate(-turn, expand=True)

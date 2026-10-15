@@ -2,8 +2,8 @@
 # Create the working folders the project needs (gitignored, absent after a fresh clone).
 set -euo pipefail
 cd "$(dirname "$0")"
-mkdir -p input output invoice legal
-echo "ready: input/ output/ invoice/ legal/"
+mkdir -p data/raw data/ground_truth data/output data/review data/results data/artifacts data/models/finetune/tessdata
+echo "ready: data/"
 
 # Pick a Python launcher: python3 on *nix, python on Windows/Git-Bash.
 if command -v python3 >/dev/null 2>&1; then PY=python3

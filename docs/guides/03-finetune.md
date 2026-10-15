@@ -1,7 +1,7 @@
 # Luồng 3 · Fine-tune
 
 Ngày: 2026-08-15. Trạng thái: **đã implement**.  
-Thiết kế: [2026-08-15-tesseract-pipeline-refactor-design.md](2026-08-15-tesseract-pipeline-refactor-design.md) §6.  
+Thiết kế: [2026-08-15-tesseract-pipeline-refactor-design.md](../designs/2026-08-15-tesseract-pipeline-refactor-design.md) §6.  
 Phụ thuộc: [01 OCR](01-ocr.md) (`TextLine`, artifacts), [04 evaluation](04-evaluation.md) (GT + CER sau train).
 
 Cắt dòng từ artifact → gióng nhãn với ground truth → `.lstmf` → `lstmtraining` → `vie_lpbank.traineddata` → chạy lại OCR với model mới. Package: `finetune/`.
@@ -9,21 +9,21 @@ Cắt dòng từ artifact → gióng nhãn với ground truth → `.lstmf` → `
 ## 1 · Vòng khép kín
 
 ```
-artifacts/<sha>/<version>/pages + images   # follow-up: tạo artifact
+data/artifacts/<sha>/<version>/pages + images   # follow-up: tạo artifact
         ↓
 finetune cut / align / lstmf / train
         ↓
-finetune/tessdata/vie_lpbank.traineddata
+data/models/finetune/tessdata/vie_lpbank.traineddata
         ↓
-langs=[vie_lpbank] + TESSDATA_PREFIX=finetune/tessdata
+langs=[vie_lpbank] + TESSDATA_PREFIX=data/models/finetune/tessdata
         ↓
 python main.py <path>
         ↓
-python -m evaluate.run   # CER để xem, không phải cổng chặn
+python -m evaluate recognition --label vie_lpbank   # WER để xem, không phải cổng chặn
 ```
 
 `finetune → core + evaluate`. Mọi lệnh gọi `guards` trước.
-Đường `orchestrate` tạo `artifacts/` đã gỡ — xem [folder-review design](2026-08-17-folder-review-design.md) §8.
+Đường `orchestrate` tạo `data/artifacts/` đã gỡ — xem [folder-review design](2026-08-17-folder-review-design.md) §8.
 
 ## 2 · Cổng chặn
 
@@ -36,16 +36,16 @@ python -m evaluate.run   # CER để xem, không phải cổng chặn
 Chỉ check đúng tên `vie.traineddata` — bỏ qua `vie_lpbank.traineddata` cạnh đó.
 
 ```
-finetune/tessdata/vie.traineddata        # tải tay (gitignore)
-finetune/tessdata/osd.traineddata        # copy hệ thống (orientation)
-finetune/tessdata/vie_lpbank.traineddata # sản phẩm train
+data/models/finetune/tessdata/vie.traineddata        # tải tay (gitignore)
+data/models/finetune/tessdata/osd.traineddata        # copy hệ thống (orientation)
+data/models/finetune/tessdata/vie_lpbank.traineddata # sản phẩm train
 ```
 
 ```bash
-mkdir -p finetune/tessdata
-curl -L -o finetune/tessdata/vie.traineddata \
+mkdir -p data/models/finetune/tessdata
+curl -L -o data/models/finetune/tessdata/vie.traineddata \
   https://github.com/tesseract-ocr/tessdata_best/raw/main/vie.traineddata
-cp /opt/homebrew/share/tessdata/osd.traineddata finetune/tessdata/
+cp /opt/homebrew/share/tessdata/osd.traineddata data/models/finetune/tessdata/
 ```
 
 ## 3 · Lệnh
@@ -82,8 +82,8 @@ python -m finetune pipeline --sha <...> --version <...> [--degrade]
 ## 5 · Train
 
 ```
-tesseract <line>.png <line> -l vie --tessdata-dir finetune/tessdata --psm 13 lstm.train
-combine_tessdata -e …/vie.traineddata finetune/work/vie.lstm
+tesseract <line>.png <line> -l vie --tessdata-dir data/models/finetune/tessdata --psm 13 lstm.train
+combine_tessdata -e …/vie.traineddata data/models/finetune/work/vie.lstm
 lstmtraining --continue_from … --max_iterations 3000 …
 lstmtraining --stop_training … --model_output …/vie_lpbank.traineddata
 ```
@@ -94,11 +94,11 @@ CPU, không GPU. `--max_iterations 3000` chưa đo trên corpus.
 
 ```bash
 # config.yaml: langs: [vie_lpbank]
-TESSDATA_PREFIX=finetune/tessdata python main.py path/to/doc.pdf
-python -m evaluate.run
+TESSDATA_PREFIX=data/models/finetune/tessdata python main.py path/to/doc.pdf
+python -m evaluate recognition --label <engine>
 ```
 
-So CER qua [04](04-evaluation.md). Artifact batch (cũ: orchestrate) là follow-up.
+So WER qua [04](04-evaluation.md). Artifact batch (cũ: orchestrate) là follow-up.
 
 ## 7 · Hạn chế
 
@@ -106,4 +106,4 @@ So CER qua [04](04-evaluation.md). Artifact batch (cũ: orchestrate) là follow-
 2. Bảng không thành mẫu train.  
 3. `degrade` tắt mặc định — PDF digital-born → model gần bản gốc.  
 4. Chỉ vá nhận chữ; layout Tesseract không học được.  
-5. `ground_truth/` gitignore — clone trống thì guards chặn.
+5. `data/ground_truth/` gitignore — clone trống thì guards chặn.

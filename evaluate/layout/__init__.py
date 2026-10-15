@@ -1,7 +1,7 @@
 """Tier 1, Detection & Layout. Not implemented yet.
 
 Input will be predicted ``<doc_id>.json`` records in the ground-truth schema, scored
-against ``pages[].blocks`` of the dataset (docs/README.md, section 4):
+against ``pages[].blocks`` of the dataset (docs/specs/benchmark-ocr.md, section 4):
 
 - Detection precision / recall / F1 at IoU >= 0.5 against ``blocks[].bbox``.
 - Region classification accuracy against ``blocks[].type``.

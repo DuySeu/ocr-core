@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
-from ..tables import Cell
+from .table_grid import Cell
 
 
 class LayoutError(Exception):

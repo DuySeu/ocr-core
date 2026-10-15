@@ -10,7 +10,7 @@ Biến văn bản có cấu trúc thành JSON theo schema nghiệp vụ. Đơn v
 
 | | |
 | --- | --- |
-| Input | `.md` (và về sau `Document` / HTML cấu trúc nếu có) từ artifacts hoặc `output/` |
+| Input | `.md` (và về sau `Document` / HTML cấu trúc nếu có) từ artifacts hoặc `data/output/` |
 | Output | JSON đúng schema từng loại văn bản (quy chế, quyết định, thông báo, công văn, …) |
 | Ràng buộc | Self-host nếu compliance chặn API; field không đủ tin cậy → để trống + đánh dấu review |
 

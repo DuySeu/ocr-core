@@ -15,10 +15,11 @@ from evaluate.ground_truth import discover_text
 
 logger = logging.getLogger(__name__)
 
-FINETUNE_DIR = Path(__file__).resolve().parent
-TESSDATA_DIR = FINETUNE_DIR / "tessdata"
-DATA_DIR = FINETUNE_DIR / "data"
-WORK_DIR = FINETUNE_DIR / "work"
+# Models, line crops and training scratch live with the other local data, not in the package
+MODELS_DIR = Path(__file__).resolve().parent.parent / "data" / "models" / "finetune"
+TESSDATA_DIR = MODELS_DIR / "tessdata"
+DATA_DIR = MODELS_DIR / "data"
+WORK_DIR = MODELS_DIR / "work"
 
 BASE_TRAINEDDATA = TESSDATA_DIR / "vie.traineddata"
 OSD_TRAINEDDATA = TESSDATA_DIR / "osd.traineddata"
@@ -57,8 +58,8 @@ def _require_best_traineddata() -> None:
     if not BASE_TRAINEDDATA.is_file():
         raise GuardError(
             f"missing {BASE_TRAINEDDATA}. Download the best build:\n"
-            "  mkdir -p finetune/tessdata\n"
-            "  curl -L -o finetune/tessdata/vie.traineddata \\\n"
+            "  mkdir -p data/models/finetune/tessdata\n"
+            "  curl -L -o data/models/finetune/tessdata/vie.traineddata \\\n"
             "    https://github.com/tesseract-ocr/tessdata_best"
             "/raw/main/vie.traineddata"
         )
@@ -92,6 +93,6 @@ def _require_ground_truth(directory: Path) -> None:
     if not found:
         raise GuardError(
             f"no ground-truth files under {directory}. "
-            "Clone or copy LPBank .md files into ground_truth/lpbank/."
+            "Clone or copy LPBank .md files into data/ground_truth/lpbank/."
         )
     logger.info("ground truth: %d file(s) under %s", len(found), directory)

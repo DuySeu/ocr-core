@@ -21,7 +21,7 @@ DEFAULT_TABLE_THRESHOLD = 0.5
 EVALUATE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = EVALUATE_DIR.parent
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config.yaml"
-RESULTS_DIR = EVALUATE_DIR / "results"
+RESULTS_DIR = REPO_ROOT / "data" / "results"
 
 # config.yaml key each directory falls back to
 PRED_KEY = "output_dir"

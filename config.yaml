@@ -8,9 +8,9 @@ layout: tesseract
 table: cv
 qa_threshold: 0.9
 
-input_dir: ./dataset/lpbank
-output_dir: ./output
-review_dir: ./review
-artifacts_dir: ./artifacts
+input_dir: ./data/raw/lpbank
+output_dir: ./data/output/tesseract/lpbank
+review_dir: ./data/review
+artifacts_dir: ./data/artifacts
 
-ground_truth_dir: ./ground_truth/lpbank # directory containing ground truth text files for evaluation
+ground_truth_dir: ./data/ground_truth/lpbank # directory containing ground truth text files for evaluation

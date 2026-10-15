@@ -36,7 +36,7 @@ class Config:
     )
     layout: str = "tesseract"
     table: str = "cv"
-    outputs: list[str] = field(default_factory=lambda: ["markdown", "coco"])
+    outputs: list[str] = field(default_factory=lambda: ["markdown"])
     qa_threshold: float = 0.75
     input_dir: str = "./dataset/lpbank"
     output_dir: str = "./output"

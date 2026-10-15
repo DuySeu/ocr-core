@@ -6,7 +6,7 @@ preprocess_steps: [orientation, deskew, denoise]
 
 layout: tesseract
 table: cv
-qa_threshold: 0.75
+qa_threshold: 0.9
 
 input_dir: ./dataset/lpbank
 output_dir: ./output

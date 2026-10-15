@@ -4,8 +4,9 @@ OCR::
 
     python main.py <path> [--config config.yaml] [--out output/]
 
-Writes full ``output/<stem>/`` (md + coco + document.json). Pages under
-``qa_threshold`` are also dumped to ``review/<stem>/`` (webp + editable md).
+Writes ``output/<stem>/`` (``.md`` + ``.document.json``; other formats
+follow ``cfg.outputs``). Pages under ``qa_threshold`` are also dumped to
+``review/<stem>/`` (webp + editable md).
 
 Apply review::
 

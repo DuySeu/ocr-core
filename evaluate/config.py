@@ -1,9 +1,12 @@
-"""Reading config.yaml into the paths and thresholds one evaluation run needs.
+"""Resolving which prediction and ground-truth directories one evaluation run reads.
 
-This does not reuse ``core.config``. That loader rejects any key outside
-``Config.__dataclass_fields__`` — which ``ground_truth_dir`` is not — and its
-``VALID_ENGINES`` set does not name every engine there is output for. Reading the
-file here is also what keeps ``evaluate/`` free of any ``core`` import, so the
+Directories given on the command line win and resolve against the working
+directory. A directory left out falls back to ``output_dir`` / ``ground_truth_dir``
+in config.yaml, resolved against the repo root. Everything else in that file belongs
+to the pipeline and is ignored here.
+
+This does not reuse ``core.config``: that loader rejects ``ground_truth_dir``, and
+reading the file here keeps ``evaluate/`` free of any ``core`` import, so the
 evaluator scores whatever wrote the files rather than only what this repo runs.
 """
 
@@ -14,66 +17,57 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_IOU_THRESHOLD = 0.5
 DEFAULT_TABLE_THRESHOLD = 0.5
 EVALUATE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = EVALUATE_DIR.parent
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config.yaml"
+RESULTS_DIR = EVALUATE_DIR / "results"
 
-# The keys scoring cannot run without. Everything else in config.yaml belongs to
-# the pipeline and is ignored here rather than rejected.
-REQUIRED_KEYS = ("engine", "output_dir", "ground_truth_dir")
+# config.yaml key each directory falls back to
+PRED_KEY = "output_dir"
+GT_KEY = "ground_truth_dir"
 
 
 @dataclass(frozen=True)
 class EvalConfig:
-    """Which engine's output is scored, against what, and how strictly."""
+    """The two directories a tier compares."""
 
-    engine: str
-    output_dir: Path
-    ground_truth_dir: Path
-    iou_threshold: float = DEFAULT_IOU_THRESHOLD
-    table_threshold: float = DEFAULT_TABLE_THRESHOLD
-
-    @property
-    def results_dir(self) -> Path:
-        return EVALUATE_DIR / "results" / self.engine
+    pred_dir: Path
+    gt_dir: Path
 
 
 class ConfigError(Exception):
-    """Raised when config.yaml is missing, malformed, or lacks a key scoring needs."""
+    """Raised when a directory is missing, or config.yaml cannot supply one."""
 
 
-# Read config.yaml and resolve its directories against the repo root.
+# Resolve both directories from the CLI, falling back to config.yaml for any left out.
 def load_config(
     path: Path = DEFAULT_CONFIG_PATH,
-    iou_threshold: float = DEFAULT_IOU_THRESHOLD,
-    table_threshold: float = DEFAULT_TABLE_THRESHOLD,
+    pred_dir: Path | None = None,
+    gt_dir: Path | None = None,
 ) -> EvalConfig:
-    if not path.exists():
-        raise ConfigError(f"config not found: {path}")
+    parsed: dict = {}
+    if pred_dir is None or gt_dir is None:
+        if not path.exists():
+            raise ConfigError(f"config not found: {path}")
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise ConfigError(f"{path} must contain a mapping, got {type(loaded).__name__}")
+        parsed = loaded
 
-    parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(parsed, dict):
-        raise ConfigError(f"{path} must contain a mapping, got {type(parsed).__name__}")
+    resolved: dict[str, Path] = {}
+    for key, given in ((PRED_KEY, pred_dir), (GT_KEY, gt_dir)):
+        if given is not None:
+            directory = given.resolve()
+        elif parsed.get(key):
+            # Relative paths in config.yaml are written from the repo root, not from cwd
+            directory = (REPO_ROOT / str(parsed[key])).resolve()
+        else:
+            raise ConfigError(f"{path} is missing {key} and no directory was given for it")
 
-    missing = [key for key in REQUIRED_KEYS if not parsed.get(key)]
-    if missing:
-        raise ConfigError(f"{path} is missing {', '.join(missing)}")
-
-    # Relative paths in config.yaml are written from the repo root, not from cwd
-    output_dir = (REPO_ROOT / str(parsed["output_dir"])).resolve()
-    ground_truth_dir = (REPO_ROOT / str(parsed["ground_truth_dir"])).resolve()
-
-    # A missing directory here is a config error, not an empty result set
-    for label, directory in (("output_dir", output_dir), ("ground_truth_dir", ground_truth_dir)):
+        # A missing directory here is a config error, not an empty result set
         if not directory.is_dir():
-            raise ConfigError(f"{path}: {label} is not a directory: {directory}")
+            raise ConfigError(f"{key} is not a directory: {directory}")
+        resolved[key] = directory
 
-    return EvalConfig(
-        engine=str(parsed["engine"]),
-        output_dir=output_dir,
-        ground_truth_dir=ground_truth_dir,
-        iou_threshold=iou_threshold,
-        table_threshold=table_threshold,
-    )
+    return EvalConfig(pred_dir=resolved[PRED_KEY], gt_dir=resolved[GT_KEY])

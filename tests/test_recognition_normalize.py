@@ -2,7 +2,7 @@ import unicodedata
 
 import pytest
 
-from evaluate.normalize import strict, tone_blind
+from evaluate.recognition.normalize import IMAGE_PLACEHOLDER, mark_images, strict, strip_figures
 
 
 @pytest.mark.parametrize(
@@ -62,16 +62,22 @@ def test_inline_tags_close_up_instead_of_splitting_a_word():
     assert strict("<b>đậm</b>nối") == "đậmnối"
 
 
-def test_tone_blind_removes_tones_but_keeps_vowel_quality_marks_and_d():
-    # ơ and đ are different letters, not tones, so only the tone may go
-    assert tone_blind("đường") == "đương"
-    assert tone_blind("phở") == "phơ"
-    assert tone_blind("ăn") == "ăn"
+def test_html_entities_are_decoded():
+    assert strict("Phòng A &amp; B") == "Phòng A & B"
 
 
-def test_tone_blind_collapses_words_differing_only_by_tone():
-    assert tone_blind("hòa") == tone_blind("hoa") == "hoa"
+def test_chandra_figure_descriptions_are_dropped():
+    assert strict("trước [hình: Con dấu tròn màu đỏ] sau") == "trước sau"
 
 
-def test_tone_blind_still_separates_words_differing_by_a_letter():
-    assert tone_blind("đá") != tone_blind("da")
+def test_an_image_marker_survives_strict_as_one_placeholder_word():
+    assert strict(mark_images("trước\n<!-- image -->\nsau")).split() == ["trước", IMAGE_PLACEHOLDER, "sau"]
+
+
+def test_without_mark_images_the_marker_is_dropped_like_any_comment():
+    assert strict("trước <!-- image --> sau") == "trước sau"
+
+
+def test_strip_figures_keeps_markup_and_tone_placement_untouched():
+    # TEDS cell text runs only steps 1-4
+    assert strip_figures("<b>hoà</b> ![x](y.png)").split() == ["<b>hoà</b>"]

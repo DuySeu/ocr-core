@@ -1,17 +1,15 @@
-"""Stage 4 table scoring: TEDS and TEDS-Struct over matched table elements.
+"""Table scoring for the Recognition tier: TEDS over tables paired by content.
 
 Tree edit distance under the PubTabNet cost model. Two normalizations are applied
 before comparing, both deliberate: ``<th>`` collapses to ``<td>`` because no table
 recognizer here distinguishes header cells reliably, and ``<thead>``/``<tbody>``
 are dropped because they carry no structure the metric scores while the
-page-spanning table splice would otherwise invent differences.
+page-spanning table splice would otherwise invent differences. Cell text goes
+through ``normalize.strip_figures`` only, so an image or ``[hình: ...]`` in a cell
+is dropped but tone placement is not canonicalized.
 
-TEDS is higher-is-better, unlike CER and WER.
-
-Two entry points, because tables can be paired two ways. ``score_tables`` scores
-tables that bbox matching already paired, and needs COCO on both sides.
-``pair_tables`` plus ``score_table_pairs`` pair by content instead, for the far more
-common case of a markdown or HTML document with no boxes at all.
+There are no boxes on either side, so tables are paired by content: greedily on
+TEDS-Struct, then on full TEDS, then on index. TEDS is higher-is-better.
 """
 
 from __future__ import annotations
@@ -22,9 +20,7 @@ from apted import APTED, Config
 from lxml import etree, html
 from rapidfuzz.distance import Levenshtein
 
-from ..matching import MatchResult
-
-TABLE_CATEGORY = "table"
+from . import normalize
 
 # Wrappers dropped from the tree; their children are lifted into the parent.
 SKIP_TAGS = frozenset({"thead", "tbody", "tfoot"})
@@ -45,17 +41,6 @@ class TableNode:
     rowspan: int
     text: str
     children: list["TableNode"] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class TableScore:
-    """Table structure quality. Higher is better; 1.0 is an exact match."""
-
-    n_tables: int
-    n_unparseable: int  # predictions with missing or unusable HTML, scored 0.0
-    teds: float | None
-    teds_struct: float | None
-    unparseable_ids: list[int]
 
 
 @dataclass(frozen=True)
@@ -82,7 +67,7 @@ class DocumentTableScore:
 
 
 class TableError(Exception):
-    """Raised when ground-truth table HTML is missing or unparseable."""
+    """Raised when an extracted table cannot be parsed, which the extractors never produce."""
 
 
 class TedsConfig(Config):
@@ -129,45 +114,6 @@ def teds(predicted: TableNode, gold: TableNode, structure_only: bool = False) ->
     # larger tree has nodes, so the raw ratio is clamped rather than left negative
     largest = max(_count_nodes(predicted), _count_nodes(gold))
     return max(0.0, 1.0 - distance / largest) if largest else 1.0
-
-
-# Score every matched table under both the full and structure-only cost models.
-def score_tables(results: list[MatchResult]) -> TableScore:
-    full: list[float] = []
-    structural: list[float] = []
-    unparseable_ids: list[int] = []
-
-    for result in results:
-        for match in result.matches:
-            if match.gold.category != TABLE_CATEGORY:
-                continue
-
-            # Broken gold is an annotation defect: fail loudly rather than blame the model
-            gold_tree = parse_table(match.gold.html or "")
-            if gold_tree is None:
-                raise TableError(
-                    f"gold table element {match.gold.id} on page {match.gold.page} "
-                    "has missing or unparseable html"
-                )
-
-            # Missing or unusable predicted HTML scores zero and is named in the report
-            predicted_tree = parse_table(match.predicted.html or "")
-            if predicted_tree is None:
-                unparseable_ids.append(match.predicted.id)
-                full.append(0.0)
-                structural.append(0.0)
-                continue
-
-            full.append(teds(predicted_tree, gold_tree))
-            structural.append(teds(predicted_tree, gold_tree, structure_only=True))
-
-    return TableScore(
-        n_tables=len(full),
-        n_unparseable=len(unparseable_ids),
-        teds=sum(full) / len(full) if full else None,
-        teds_struct=sum(structural) / len(structural) if structural else None,
-        unparseable_ids=unparseable_ids,
-    )
 
 
 # Pair predicted tables to gold greedily, by structure and then by full score.
@@ -241,6 +187,31 @@ def score_table_pairs(
     )
 
 
+# Pool every document's matched pairs into one corpus row, weighted by match count.
+def pool_tables(scores: list[DocumentTableScore]) -> DocumentTableScore | None:
+    if not scores:
+        return None
+
+    matched = sum(s.n_matched for s in scores)
+    gold = sum(s.n_gold for s in scores)
+
+    # Weight by matched count so a document with one table does not outweigh one with forty
+    return DocumentTableScore(
+        teds=sum(s.teds * s.n_matched for s in scores if s.teds is not None) / matched
+        if matched
+        else None,
+        teds_struct=sum(s.teds_struct * s.n_matched for s in scores if s.teds_struct is not None)
+        / matched
+        if matched
+        else None,
+        n_matched=matched,
+        n_gold=gold,
+        n_pred=sum(s.n_pred for s in scores),
+        table_recall=matched / gold if gold else None,
+        note=None,
+    )
+
+
 # Build child nodes for one element, lifting wrapper tags and folding th into td.
 # style: keep — recursive descent over the table tree; it cannot be inlined.
 def _child_nodes(element: etree._Element) -> list[TableNode]:
@@ -258,7 +229,7 @@ def _child_nodes(element: etree._Element) -> list[TableNode]:
             continue
 
         # Rows hold no text of their own; cell text is whitespace-flattened
-        text = "" if tag == "tr" else " ".join("".join(child.itertext()).split())
+        text = "" if tag == "tr" else " ".join(normalize.strip_figures("".join(child.itertext())).split())
         nodes.append(
             TableNode(
                 tag="td" if tag == "th" else tag,

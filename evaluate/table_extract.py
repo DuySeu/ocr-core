@@ -1,6 +1,6 @@
 """Reducing a document to the list of HTML tables it holds, whichever form they were written in.
 
-Three forms converge here so ``metrics.table.parse_table`` stays the only parser:
+Three forms converge here so ``recognition.tables.parse_table`` stays the only parser:
 ``<table>`` markup embedded in markdown, markdown pipe tables, and real ``.docx``
 tables. Predictions and ground truth for one stem routinely use different forms -
 ``tonghopdon`` gold is pipe and its prediction is ``<table>`` - so the comparison
@@ -10,9 +10,10 @@ Tables come back in **document order**, interleaved regardless of form, because 
 table's position in the returned list is the index the scorer pairs and tie-breaks
 on.
 
-The docx walker is public because two callers need it: ``extract_docx_tables`` here
-and ``ground_truth.load``, which builds the plain-text stream. Both have to avoid
-``row.cells``, which reports a vertically merged cell once per row it spans.
+The docx walker is public because ``ground_truth.load`` builds its plain-text stream
+from it, and ``docx_table_html`` because ``ground_truth.convert`` writes docx tables
+into markdown. All of them avoid ``row.cells``, which reports a vertically merged cell
+once per row it spans.
 """
 
 from __future__ import annotations
@@ -107,29 +108,29 @@ def extract_docx_tables(path: Path) -> list[str]:
     if not path.exists():
         raise TableExtractError(f"docx not found: {path}")
 
-    document = Document(str(path))
-    tables: list[str] = []
-    for table in document.tables:
-        # Group the walker's stream back into rows, which it yields in row-major order
-        rows: dict[int, list[DocxCell]] = {}
-        for cell in walk_docx_cells(table):
-            rows.setdefault(cell.row, []).append(cell)
+    return [docx_table_html(table) for table in Document(str(path)).tables]
 
-        markup = ["<table>"]
-        for row_index in sorted(rows):
-            markup.append("<tr>")
-            for cell in rows[row_index]:
-                spans = ""
-                if cell.colspan > 1:
-                    spans += f' colspan="{cell.colspan}"'
-                if cell.rowspan > 1:
-                    spans += f' rowspan="{cell.rowspan}"'
-                markup.append(f"<td{spans}>{escape(cell.text)}</td>")
-            markup.append("</tr>")
-        markup.append("</table>")
-        tables.append("".join(markup))
 
-    return tables
+# Render one docx table as HTML, with spans, each merged cell once.
+def docx_table_html(table: Table) -> str:
+    # Group the walker's stream back into rows, which it yields in row-major order
+    rows: dict[int, list[DocxCell]] = {}
+    for cell in walk_docx_cells(table):
+        rows.setdefault(cell.row, []).append(cell)
+
+    markup = ["<table>"]
+    for row_index in sorted(rows):
+        markup.append("<tr>")
+        for cell in rows[row_index]:
+            spans = ""
+            if cell.colspan > 1:
+                spans += f' colspan="{cell.colspan}"'
+            if cell.rowspan > 1:
+                spans += f' rowspan="{cell.rowspan}"'
+            markup.append(f"<td{spans}>{escape(cell.text)}</td>")
+        markup.append("</tr>")
+    markup.append("</table>")
+    return "".join(markup)
 
 
 # Yield each cell of a docx table once, with its grid position and spans.

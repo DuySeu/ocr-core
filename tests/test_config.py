@@ -7,6 +7,10 @@ def test_defaults_validate():
     Config().validate()
 
 
+def test_default_outputs_are_markdown_only():
+    assert Config().outputs == ["markdown"]
+
+
 def test_unknown_layout_rejected():
     with pytest.raises(ConfigError):
         Config(layout="bogus").validate()

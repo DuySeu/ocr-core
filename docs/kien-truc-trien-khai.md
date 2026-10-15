@@ -15,7 +15,7 @@ Hệ thống gồm ba luồng nối tiếp nhau, mỗi luồng là một zone tr
 
 | Luồng | Nhiệm vụ | Đơn vị công việc |
 | --- | --- | --- |
-| 1 · OCR | Biến trang PDF thành văn bản có cấu trúc (`.md`, `.html`, COCO) và PDF tìm kiếm được | Một trang |
+| 1 · OCR | Biến trang PDF thành văn bản có cấu trúc (`.md`) | Một trang |
 | 2 · Trích xuất thông tin | Biến văn bản có cấu trúc thành JSON theo schema nghiệp vụ | Một văn bản |
 | 3 · Fine-tune | Đo chất lượng, thu mẫu lỗi, huấn luyện tăng cường, đưa model mới trở lại luồng 1 | Một đợt huấn luyện |
 
@@ -28,10 +28,10 @@ Hệ thống gồm ba luồng nối tiếp nhau, mỗi luồng là một zone tr
 | **Preprocess (300 DPI, orientation, deskew)** | Ba bước trên cùng một ảnh trang, chạy trong bộ nhớ: dựng ảnh ở 300 DPI, xoay đúng chiều, làm thẳng trang bị nghiêng. Ảnh trung gian không ghi ra đĩa |
 | **Chandra OCR 2** (GPU) | Đọc nội dung trang trong một lượt duy nhất: bố cục, thứ tự đọc, chữ, bảng, công thức. Trả kèm độ tin cậy (log-prob) cho từng phần đã đọc. Phiên bản model và hash weights được ghim ngay tại đây, và checkpoint mới từ luồng 3 cũng nạp vào đúng chỗ này - trong kiến trúc AWS nó là `pipeline_version` nằm trong khoá checkpoint (xem [kien-truc-aws.drawio](kien-truc-aws.drawio)), không phải một model registry dựng riêng |
 | **Assemble** | Dựng output thô của model thành một `Document` hoàn chỉnh: nối caption vào hình, nối bảng tràn trang, chốt thứ tự đọc, gán id, validate. Bằng code, không có model - xem chi tiết ngay dưới bảng này |
-| **Serialize** | Ghi đúng `Document` đó ra file: `.md` cho RAG, COCO cho bbox. Một lần OCR, nhiều định dạng |
+| **Serialize** | Ghi đúng `Document` đó ra file (`.md` cho RAG). Một lần OCR, nhiều định dạng khi cần |
 | **QA gating** | Cổng chặn theo ngưỡng độ tin cậy. Đạt ngưỡng thì ghi thẳng kết quả; dưới ngưỡng thì chuyển sang đường kiểm tra của người |
 | **Page review queue** | Người kiểm tra đọc, sửa và xác nhận những trang dưới ngưỡng. Bản đã sửa được ghi trở lại vào kết quả chung |
-| **artifacts** | Vùng lưu trữ đối tượng (S3) chứa kết quả OCR: `.md`, `.html`, COCO, `.pdf` tìm kiếm được, hình đã cắt. Đây là nguồn dữ liệu cho cả luồng 2 và luồng 3 |
+| **artifacts** | Vùng lưu trữ đối tượng (S3) chứa kết quả OCR (`.md`, hình đã cắt, …). Đây là nguồn dữ liệu cho cả luồng 2 và luồng 3 |
 | **Build searchable PDF** | Phủ một lớp text vô hình lên ảnh trang, lấy chữ và toạ độ khối từ `artifacts`. Chạy cho **mọi trang đã hoàn tất**, không phân biệt trang tự đạt ngưỡng hay trang người kiểm tra đã sửa - bản sửa được ghi trở lại `artifacts` nên cả hai nhánh đều có mặt ở đó. Cho ra bản PDF nhìn y hệt bản gốc nhưng tra được bằng Ctrl+F trong mọi trình đọc PDF; ghi lại vào `artifacts` rồi đẩy ngược về ECM cho người dùng cuối |
 
 ### Assemble và Serialize
@@ -42,7 +42,7 @@ Chandra dừng lại ở đúng một chuỗi thô cho mỗi trang: HTML mang `d
 | --- | --- | --- |
 | Adapter | Dịch output riêng của một provider về dạng chung: mỗi khối thành một element có bbox trong hệ toạ độ trang và nhãn theo bộ class DocLayNet. Đây là chỗ duy nhất phải viết lại nếu đổi sang model khác | stage 3-4, `core/layout/` + `core/recognize/` |
 | Assemble | Nối caption vào hình, nối bảng bị cắt qua hai trang, chốt thứ tự đọc, gán id cho từng element, rồi validate bảng và công thức. Validate chỉ gắn cờ lỗi lên element, không sửa nội dung và không đụng vào điểm tin cậy - để QA gating phía sau còn đọc được tín hiệu gốc | stage 5, `core/document/` |
-| Serialize | Đọc đúng một `Document` đó và ghi ra nhiều định dạng: `.md` cho RAG, COCO cho bbox. Một lần OCR, nhiều output - không chạy lại model cho mỗi định dạng | stage 6, `core/serialize/` |
+| Serialize | Đọc đúng một `Document` đó và ghi ra định dạng dùng được (`.md` cho RAG). Một lần OCR — không chạy lại model cho mỗi định dạng | stage 6, `core/serialize/` |
 
 Ba bước trên nằm gọn trong hai hộp của sơ đồ: adapter thuộc về hộp **Chandra OCR 2** vì nó là tầng dịch output của chính model đó (stage 3-4, chỗ duy nhất phải viết lại khi đổi model), còn validate là một bước bên trong **Assemble** chứ không phải một tầng riêng. Sơ đồ trước đây gộp cả ba vào một hộp tên "Adapter → Validate → Serialize", đọc lên tưởng ba bước ngang hàng và che mất ranh giới stage; hai hộp `Assemble` và `Serialize` khớp đúng hai stage cuối trong [luồng OCR](01-ocr.md) và tra thẳng ra được `core/document/` với `core/serialize/`.
 
@@ -121,7 +121,7 @@ Luồng 1 chảy trái sang phải, luồng 2 chảy phải sang trái, luồng 
 
 | Giai đoạn | Nội dung | Kết quả nhận được |
 | --- | --- | --- |
-| 1 | Luồng OCR + bộ đo chất lượng | Kết quả `.md` / `.html` / COCO và số đo chất lượng thật trên tài liệu của đơn vị |
+| 1 | Luồng OCR + bộ đo chất lượng | Kết quả `.md` và số đo chất lượng thật trên tài liệu của đơn vị |
 | 2 | Chốt ngưỡng tin cậy + màn hình kiểm tra + searchable PDF | Kết quả có bảo đảm: phần dưới ngưỡng được người xác nhận trước khi dùng, và bản PDF tra cứu được đẩy ngược về ECM |
 | 3 | Luồng trích xuất thông tin | JSON theo schema nghiệp vụ cho từng loại văn bản |
 | 4 | Luồng fine-tune | Model riêng cho đơn vị, tỉ lệ can thiệp tay giảm dần theo từng đợt |

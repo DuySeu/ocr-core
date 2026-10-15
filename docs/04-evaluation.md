@@ -7,7 +7,7 @@ Chấm chất lượng output của từng luồng. Không nằm trong pipeline 
 
 | Luồng | Input chấm | Metric hiện tại |
 | --- | --- | --- |
-| [01 OCR](01-ocr.md) | `output/<stem>/*.md` (+ `.coco.json` khi có) vs `ground_truth/` | CER/WER, TEDS (document-level); IoU khi có COCO gold |
+| [01 OCR](01-ocr.md) | `output/<stem>/*.md` vs `ground_truth/` | CER/WER, TEDS (document-level); IoU khi có bbox gold |
 | [02 Trích xuất](02-trich-xuat.md) | JSON vs schema gold | **Chưa implement** |
 | [03 Fine-tune](03-finetune.md) | Cùng harness OCR, so hai lần chạy (trước/sau `vie_lpbank`) | CER (xem xu hướng) |
 
@@ -28,7 +28,7 @@ Trùng stem → raise. Thiếu prediction / thiếu gold → báo rõ trong repo
 - Thư mục: `ground_truth/lpbank/<stem>.md` (gitignore — có trên máy làm việc).
 - Nguồn phase 1: text layer PDF &lt; 20 trang (`<!-- page: N -->`, 1-based).
 - Markup `<table>` trong GT là có chủ ý (để TEDS / để finetune bỏ đúng khối bảng khi align).
-- Chưa có gold COCO bbox đầy đủ trên corpus; IoU layout chủ yếu trên fixture hoặc khi có annotate.
+- Chưa có gold bbox đầy đủ trên corpus; IoU layout chủ yếu trên fixture hoặc khi có annotate.
 
 Finetune cũng dùng cùng GT qua `evaluate.ground_truth.discover_text()` — xem [03](03-finetune.md).
 
@@ -37,7 +37,7 @@ Finetune cũng dùng cùng GT qua `evaluate.ground_truth.discover_text()` — xe
 ### Layout — IoU (stage layout)
 
 Ghép tham lam IoU ≥ 0,5 theo `(trang, category)`. P/R/F1 + mean IoU trên cặp đã ghép.  
-**Cần** prediction + gold `.coco.json`. Pipeline hiện tại đã ghi COCO; gold COCO annotated vẫn hạn chế.
+**Cần** prediction + gold bbox trên cả hai phía. Cách xuất bbox khi OCR: xem [01-ocr.md](01-ocr.md). Gold annotate vẫn hạn chế.
 
 ### Text — CER / WER
 
@@ -49,7 +49,7 @@ Báo cáo: CER strict, CER tone-blind, WER strict.
 Chuẩn hoá strict (cả hai phía): NFC → bóc markdown/HTML → quy vị trí dấu thanh kiểu cũ → gộp whitespace.  
 Tone-blind = strict + bỏ 5 dấu thanh, giữ `â ê ô ă ơ ư đ`.
 
-Đường **document-level** (đọc `.md`) đang là đường chạy thật chính. CER mức element (COCO) khi có field `text` trên annotation.
+Đường **document-level** (đọc `.md`) đang là đường chạy thật chính. CER mức element khi có field `text` trên annotation bbox.
 
 ### Table — TEDS
 

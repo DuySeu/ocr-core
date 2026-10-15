@@ -1,17 +1,13 @@
 import pytest
 
-from evaluate.loader import EvalElement
-from evaluate.matching import Match, MatchResult
-from evaluate.metrics.table import (
-    TableError,
+from evaluate.recognition.tables import (
+    DocumentTableScore,
     pair_tables,
     parse_table,
+    pool_tables,
     score_table_pairs,
-    score_tables,
     teds,
 )
-
-BOX = (0.0, 0.0, 0.10, 0.10)
 
 GOLD_HTML = (
     "<table><thead><tr><th>Tên</th><th>Số</th></tr></thead>"
@@ -48,21 +44,6 @@ COST_EXCEEDS_NODE_COUNT_PREDICTED = (
 )
 
 
-# Build one matched table pair carrying the two HTML strings.
-def pair(predicted_html, gold_html, element_id=1):
-    def side(offset, html):
-        return EvalElement(
-            id=element_id + offset, page=1, category="table", bbox=BOX, text=None, html=html
-        )
-
-    return Match(predicted=side(100, predicted_html), gold=side(0, gold_html), iou=1.0)
-
-
-# Wrap matches into a single page result with nothing unmatched.
-def page(*matches):
-    return MatchResult(page=1, matches=list(matches), false_positives=[], false_negatives=[])
-
-
 def test_th_and_tbody_wrappers_do_not_count_as_structural_differences():
     assert teds(parse_table(SAME_STRUCTURE), parse_table(GOLD_HTML)) == pytest.approx(1.0)
 
@@ -76,17 +57,17 @@ def test_teds_is_never_negative():
 
 
 def test_a_misread_cell_lowers_teds_but_leaves_the_structure_score_perfect():
-    score = score_tables([page(pair(ONE_CELL_WRONG, GOLD_HTML))])
+    predicted, gold = parse_table(ONE_CELL_WRONG), parse_table(GOLD_HTML)
 
-    assert score.teds < 1.0
-    assert score.teds_struct == pytest.approx(1.0)
+    assert teds(predicted, gold) < 1.0
+    assert teds(predicted, gold, structure_only=True) == pytest.approx(1.0)
 
 
 def test_a_missing_cell_lowers_both_scores():
-    score = score_tables([page(pair(MISSING_CELL, GOLD_HTML))])
+    predicted, gold = parse_table(MISSING_CELL), parse_table(GOLD_HTML)
 
-    assert score.teds < 1.0
-    assert score.teds_struct < 1.0
+    assert teds(predicted, gold) < 1.0
+    assert teds(predicted, gold, structure_only=True) < 1.0
 
 
 def test_a_differing_colspan_is_a_structural_error():
@@ -96,37 +77,53 @@ def test_a_differing_colspan_is_a_structural_error():
 
 
 @pytest.mark.parametrize("markup", ["", "   ", "not markup at all", "<p>no table here</p>"])
-def test_unusable_predicted_html_scores_zero_and_is_named(markup):
-    score = score_tables([page(pair(markup, GOLD_HTML))])
-
-    assert score.teds == 0.0
-    assert score.n_tables == 1
-    assert score.unparseable_ids == [101]
+def test_markup_with_no_table_parses_to_none(markup):
+    assert parse_table(markup) is None
 
 
-def test_a_recognizer_that_produced_nothing_is_scored_not_dropped():
-    score = score_tables([page(pair(None, GOLD_HTML))])
-
-    assert score.n_tables == 1
-    assert score.n_unparseable == 1
+README_GOLD = "<table><tr><td>Kỳ hạn</td><td>Lãi suất</td></tr><tr><td>6 tháng</td><td>5,5%</td></tr></table>"
 
 
-def test_broken_ground_truth_raises_instead_of_blaming_the_model():
-    with pytest.raises(TableError, match="unparseable html"):
-        score_tables([page(pair(SAME_STRUCTURE, "<p>not a table</p>"))])
+# The single-pair rows of the TEDS example table in evaluate/README.md.
+@pytest.mark.parametrize(
+    "predicted,expected",
+    [
+        (README_GOLD, 1.0),
+        ("<table><tr><td>Kỳ hạn</td><td>Lãi suất</td></tr><tr><td>6 tháng</td><td>5.5%</td></tr></table>", 0.9643),
+        ("<table><tr><td>Kỳ hạn</td><td>Lãi suất</td></tr><tr><td>6 thang</td><td>5,5%</td></tr></table>", 0.9796),
+        (
+            "<table><tr><td>Kỳ hạn</td><td>Lãi suất</td></tr><tr><td>6 tháng</td><td>5,5%</td></tr>"
+            "<tr><td>12 tháng</td><td>6%</td></tr></table>",
+            0.7,
+        ),
+        (
+            "<table><tr><td>Kỳ hạn</td><td>Lãi suất</td><td></td></tr>"
+            "<tr><td>6 tháng</td><td>5,5%</td><td></td></tr></table>",
+            0.7778,
+        ),
+        (
+            '<table><tr><td colspan="2">Kỳ hạn Lãi suất</td></tr><tr><td>6 tháng</td><td>5,5%</td></tr></table>',
+            0.7143,
+        ),
+    ],
+)
+def test_readme_teds_examples(predicted, expected):
+    assert teds(parse_table(predicted), parse_table(README_GOLD)) == pytest.approx(expected, abs=1e-4)
 
 
-def test_tables_are_averaged_per_table_with_the_count_reported():
-    score = score_tables(
-        [page(pair(SAME_STRUCTURE, GOLD_HTML, 1), pair(ONE_CELL_WRONG, GOLD_HTML, 2))]
+def test_images_and_figure_descriptions_in_a_cell_are_dropped_before_comparing():
+    predicted = (
+        "<table><tr><td>Kỳ hạn ![x](a.png)</td><td>Lãi suất [hình: con dấu]</td></tr>"
+        "<tr><td>6 tháng<!-- image --></td><td>5,5%</td></tr></table>"
     )
 
-    assert score.n_tables == 2
-    assert 0.0 < score.teds < 1.0
+    assert teds(parse_table(predicted), parse_table(README_GOLD)) == pytest.approx(1.0)
 
 
-def test_no_tables_reports_none_rather_than_a_perfect_score():
-    assert score_tables([]).teds is None
+def test_cell_text_keeps_its_tone_placement():
+    gold = parse_table("<table><tr><td>hòa</td></tr></table>")
+
+    assert teds(parse_table("<table><tr><td>hoà</td></tr></table>"), gold) < 1.0
 
 
 # ---------- document-level pairing ----------
@@ -261,3 +258,19 @@ def test_returns_a_note_and_no_pairs_when_the_pair_count_exceeds_the_cap():
 def _scored(predicted, gold, threshold=0.5):  # style: keep
     pairs, note = pair_tables(predicted, gold, threshold)
     return pairs, predicted, gold, note
+
+
+def test_pooling_weights_documents_by_matched_count():
+    one = DocumentTableScore(teds=1.0, teds_struct=1.0, n_matched=1, n_gold=1, n_pred=1, table_recall=1.0, note=None)
+    three = DocumentTableScore(teds=0.6, teds_struct=1.0, n_matched=3, n_gold=4, n_pred=3, table_recall=0.75, note=None)
+
+    pooled = pool_tables([one, three])
+
+    assert pooled.teds == pytest.approx(0.7)
+    assert (pooled.n_matched, pooled.n_gold, pooled.n_pred) == (4, 5, 4)
+
+
+def test_pooling_with_nothing_matched_has_no_teds():
+    empty = DocumentTableScore(teds=None, teds_struct=None, n_matched=0, n_gold=2, n_pred=0, table_recall=0.0, note=None)
+
+    assert pool_tables([empty]).teds is None

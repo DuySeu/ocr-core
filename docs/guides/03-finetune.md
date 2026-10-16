@@ -17,7 +17,7 @@ data/models/finetune/tessdata/vie_lpbank.traineddata
         ↓
 langs=[vie_lpbank] + TESSDATA_PREFIX=data/models/finetune/tessdata
         ↓
-python main.py <path>
+python -m core <path>
         ↓
 python -m evaluate recognition --label vie_lpbank   # WER để xem, không phải cổng chặn
 ```
@@ -94,7 +94,7 @@ CPU, không GPU. `--max_iterations 3000` chưa đo trên corpus.
 
 ```bash
 # config.yaml: langs: [vie_lpbank]
-TESSDATA_PREFIX=data/models/finetune/tessdata python main.py path/to/doc.pdf
+TESSDATA_PREFIX=data/models/finetune/tessdata python -m core path/to/doc.pdf
 python -m evaluate recognition --label <engine>
 ```
 

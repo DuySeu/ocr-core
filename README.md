@@ -14,9 +14,9 @@ PDF được nạp bằng `pypdfium2`, không cần Poppler. PaddleOCR và EasyO
 ## Sử dụng
 
 ```bash
-python main.py data/raw/lpbank/doc.pdf            # OCR -> <output_dir>/doc/ (+ trang yếu -> data/review/doc/)
-python main.py data/raw/lpbank/doc.pdf --out data/output/paddleocr/lpbank
-python main.py apply-review doc                   # đọc data/review/doc/p*.md, ghi lại <output_dir>/doc/
+python -m core data/raw/lpbank/doc.pdf            # OCR -> <output_dir>/doc/ (+ trang yếu -> data/review/doc/)
+python -m core data/raw/lpbank/doc.pdf --out data/output/paddleocr/lpbank
+python -m core apply-review doc                   # đọc data/review/doc/p*.md, ghi lại <output_dir>/doc/
 python -m evaluate recognition --label tesseract  # chấm WER/TEDS, xem evaluate/README.md
 python -m finetune pipeline --sha <sha> --version <version>   # xem finetune/README.md
 ```
@@ -42,8 +42,8 @@ Mỗi tài liệu ra `<output_dir>/<stem>/`: `<stem>.md`, `<stem>.document.json`
 ## Cấu trúc thư mục
 
 ```
-main.py  config.yaml  requirements.txt  setup.sh
-core/                 pipeline OCR: loader, preprocess, layout/, recognize/, document/, serialize/, engines/
+config.yaml  requirements.txt  setup.sh
+core/                 pipeline OCR (CLI: python -m core): loader, preprocess, layout/, recognize/, document/, serialize/, engines/
 evaluate/             chấm theo tầng: recognition/ (đã có), layout/, extraction/ (khung)
 finetune/             fine-tune Tesseract LSTM -> vie_lpbank.traineddata
 tests/                core/, evaluate/, finetune/  (chạy: python -m pytest -q)

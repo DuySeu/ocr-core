@@ -5,7 +5,7 @@ Thiết kế pipeline: [2026-08-15-tesseract-pipeline-refactor-design.md](../des
 Review folder (thay UI/SQLite): [2026-08-17-folder-review-design.md](2026-08-17-folder-review-design.md).  
 Sơ đồ tổng: [kien-truc-trien-khai.md](kien-truc-trien-khai.md).
 
-Biến PDF/ảnh thành văn bản có cấu trúc (`.md`), QA theo ngưỡng, trang dưới ngưỡng dump ra `data/review/` để sửa tay. Package: `core/` (+ `main.py`).
+Biến PDF/ảnh thành văn bản có cấu trúc (`.md`), QA theo ngưỡng, trang dưới ngưỡng dump ra `data/review/` để sửa tay. Package: `core/` (CLI: `python -m core`).
 
 Luồng liên quan: [02 trích xuất](02-trich-xuat.md) · [03 fine-tune](03-finetune.md) · [04 evaluation](04-evaluation.md).
 
@@ -25,8 +25,8 @@ Tiêu chí thành công: **luồng chạy end-to-end và sinh đúng output**, k
 ## 2 · Package
 
 ```
-core/     load → preprocess → layout → recognize → assemble → serialize
-main.py   CLI: OCR một file + apply-review
+core/              load → preprocess → layout → recognize → assemble → serialize
+core/__main__.py   CLI (python -m core): OCR một file + apply-review
 ```
 
 `core` không import `finetune` / `evaluate`.
@@ -34,8 +34,8 @@ main.py   CLI: OCR một file + apply-review
 
 | Lệnh                                 | Việc                                                         |
 | ------------------------------------ | ------------------------------------------------------------ |
-| `python main.py <path> [--out]`      | OCR → `<output_dir>/<stem>/` (+ dump trang yếu → `data/review/<stem>/`) |
-| `python main.py apply-review <stem>` | Đọc `data/review/<stem>/p*.md` → ghi đè lại `<output_dir>/<stem>/`      |
+| `python -m core <path> [--out]`      | OCR → `<output_dir>/<stem>/` (+ dump trang yếu → `data/review/<stem>/`) |
+| `python -m core apply-review <stem>` | Đọc `data/review/<stem>/p*.md` → ghi đè lại `<output_dir>/<stem>/`      |
 
 
 Output luôn dưới `<out>/<stem nguồn>/`.
@@ -114,7 +114,7 @@ Element / Document / PageError / PageGeometry
 gate(elements, threshold) -> PageVerdict  # qa_threshold mặc định 0.75
 ```
 
-Sau OCR, `main.py` luôn ghi full document vào `<output_dir>/<stem>/` (kể cả trang yếu), đồng thời:
+Sau OCR, `python -m core` luôn ghi full document vào `<output_dir>/<stem>/` (kể cả trang yếu), đồng thời:
 
 ```
 data/review/<stem>/
@@ -125,7 +125,7 @@ data/review/<stem>/
 Sửa tay `pNNNN.md` (giữ đúng số dòng), rồi:
 
 ```bash
-python main.py apply-review <stem>
+python -m core apply-review <stem>
 ```
 
 Apply cập nhật `TextLine.text` (giữ `text_ocr`), ghi lại `.md` / `.document.json`, xóa các trang đã apply trong `data/review/`.

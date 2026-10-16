@@ -67,11 +67,11 @@ After `vie_lpbank.traineddata` exists:
 
 ```bash
 # config.yaml: langs: [vie_lpbank]
-TESSDATA_PREFIX=data/models/finetune/tessdata python main.py path/to/doc.pdf
+TESSDATA_PREFIX=data/models/finetune/tessdata python -m core path/to/doc.pdf
 python -m evaluate recognition --label <engine>
 ```
 
-Changing `langs` changes OCR behaviour for the next `main.py` run.
+Changing `langs` changes OCR behaviour for the next `python -m core` run.
 
 ## Notes
 

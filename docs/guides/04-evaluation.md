@@ -24,7 +24,7 @@ python -m evaluate.ground_truth data/ground_truth/lpbank --source-dir data/raw/l
 ## 2 · Chạy tầng Recognition
 
 ```bash
-# Sau main.py (hoặc apply-review), prediction nằm dưới data/output/<engine>/<dataset>/
+# Sau python -m core (hoặc apply-review), prediction nằm dưới data/output/<engine>/<dataset>/
 python -m evaluate recognition --label tesseract
 ```
 

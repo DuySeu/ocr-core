@@ -2,7 +2,7 @@
 
 OCR::
 
-    python main.py <path> [--config config.yaml] [--out output/]
+    python -m core <path> [--config config.yaml] [--out output/]
 
 Writes ``output/<stem>/`` (``.md`` + ``.document.json``; other formats
 follow ``cfg.outputs``). Pages under ``qa_threshold`` are also dumped to
@@ -10,7 +10,7 @@ follow ``cfg.outputs``). Pages under ``qa_threshold`` are also dumped to
 
 Apply review::
 
-    python main.py apply-review <stem> [--config config.yaml]
+    python -m core apply-review <stem> [--config config.yaml]
 
 Reads corrected ``review/<stem>/pNNNN.md`` and rewrites ``output/<stem>/``.
 """
@@ -28,7 +28,7 @@ from core.document.model import DocumentError
 from core.loader import UnsupportedFormatError
 from core.serialize import write_document
 
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
 
 
 def _build_config(args: argparse.Namespace) -> config_mod.Config:
@@ -92,7 +92,7 @@ def main() -> int:
     )
 
     if len(sys.argv) >= 2 and sys.argv[1] == "apply-review":
-        parser = argparse.ArgumentParser(prog="ocr-core apply-review")
+        parser = argparse.ArgumentParser(prog="python -m core apply-review")
         parser.add_argument("stem", help="output/review stem directory name")
         parser.add_argument("--config", help="path to a config.yaml/json")
         args = parser.parse_args(sys.argv[2:])
@@ -102,7 +102,7 @@ def main() -> int:
             print(f"{type(e).__name__}: {e}", file=sys.stderr)
             return 2
 
-    parser = argparse.ArgumentParser(prog="ocr-core")
+    parser = argparse.ArgumentParser(prog="python -m core")
     parser.add_argument("path", help="PDF or image to OCR")
     parser.add_argument("--config", help="path to a config.yaml/json")
     parser.add_argument("--out", help="override output_dir")
